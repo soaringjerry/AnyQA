@@ -1,0 +1,7 @@
+# 忽略单个文件
+config.go
+
+# 忽略整个config文件夹
+backend/config/
+frontend/config/
+

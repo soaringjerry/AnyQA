@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>演讲者控制台</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .question-card {
+            background: #fff;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .content {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+        }
+
+        .meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: 500;
+            background: #e9ecef;
+        }
+
+        .ai-suggestion {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .markdown-content {
+            line-height: 1.8;
+        }
+
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+            margin: 1em 0 0.5em;
+        }
+
+        .markdown-content p {
+            margin-bottom: 1em;
+        }
+
+        .markdown-content code {
+            background: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+
+        .markdown-content pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .question-section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>演讲者控制台（点击问题查看详情页）</h1>
+        </div>
+        <div id="questionList"></div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>问题详情</h2>
+            </div>
+            <div class="modal-body">
+                <div class="question-section">
+                    <div class="section-title">问题内容</div>
+                    <div id="modalQuestionContent" class="markdown-content"></div>
+                </div>
+                <div class="question-section">
+                    <div class="section-title">AI 建议回复</div>
+                    <div id="modalAiSuggestion" class="markdown-content"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="showQuestion()">显示问题</button>
+                <button class="btn btn-secondary" onclick="hideModal()">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 js-yaml -->
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+    <script>
+        let appConfig = {};
+        let currentQuestionId = null;
+        let modal = document.getElementById('modal');
+
+        async function loadConfig() {
+            const response = await fetch('../config/config.yaml');
+            const text = await response.text();
+            appConfig = jsyaml.load(text);
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadConfig();
+            initializeApp();
+        });
+
+        function initializeApp() {
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                headerIds: false
+            });
+
+            loadQuestions();
+            setInterval(loadQuestions, 5000);
+        }
+
+        async function loadQuestions() {
+            try {
+                const response = await fetch(`${appConfig.api.base}/questions/${appConfig.session.id}`);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                displayQuestions(data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function displayQuestions(data) {
+            const container = document.getElementById('questionList');
+            container.innerHTML = '';
+
+            data.forEach(q => {
+                const div = document.createElement('div');
+                div.className = 'question-card';
+                div.innerHTML = `
+                    <div class="content">${q.content}</div>
+                    <div class="meta">
+                        <span class="status-badge">${q.status}</span>
+                        <button class="btn btn-secondary" onclick="event.stopPropagation(); markAsFinished(${q.id})">标记完成</button>
+                        <button class="btn btn-danger" onclick="event.stopPropagation(); deleteQuestion(${q.id})">删除</button>
+                    </div>
+                `;
+                div.onclick = () => showModal(q.id, q.content, q.ai_suggestion);
+                container.appendChild(div);
+            });
+        }
+
+        async function deleteQuestion(id) {
+            if (!confirm('确定要删除这个问题吗？')) return;
+            try {
+                await fetch(`${appConfig.api.base}/question/${id}`, {
+                    method: 'DELETE'
+                });
+                loadQuestions();
+            } catch (error) {
+                console.error('删除失败:', error);
+            }
+        }
+
+        async function markAsFinished(id) {
+            try {
+                await fetch(`${appConfig.api.base}/question/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, status: 'finished' })
+                });
+                loadQuestions();
+            } catch (error) {
+                console.error('更新失败:', error);
+            }
+        }
+
+        function showModal(id, content, aiSuggestion) {
+            currentQuestionId = id;
+            document.getElementById('modalQuestionContent').innerHTML = marked.parse(content || '');
+            document.getElementById('modalAiSuggestion').innerHTML = marked.parse(aiSuggestion || '暂无AI建议');
+            modal.style.display = 'block';
+        }
+
+        function hideModal() {
+            modal.style.display = 'none';
+        }
+
+        async function showQuestion() {
+            if (!currentQuestionId) return;
+            try {
+                const response = await fetch(`${appConfig.api.base}/question/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: currentQuestionId,
+                        status: 'showing'
+                    })
+                });
+                if (response.ok) {
+                    hideModal();
+                    loadQuestions();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // 点击模态框外部关闭
+        modal.onclick = function(event) {
+            if (event.target === modal) {
+                hideModal();
+            }
+        };
+    </script>
+</body>
+</html>

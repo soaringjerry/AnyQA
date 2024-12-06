@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Questions Display</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-bg: #1a1c2e;
+            --secondary-bg: #2a2d4a;
+            --accent-color: #6e7dff;
+            --text-primary: #ffffff;
+            --text-secondary: #b3b9ff;
+            --card-bg: rgba(42, 45, 74, 0.8);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(110, 125, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 90% 80%, rgba(110, 125, 255, 0.1) 0%, transparent 50%);
+            overflow: hidden;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+            gap: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            padding: 1rem;
+            background: var(--secondary-bg);
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            animation: slideInDown 0.5s ease-out;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .current-question {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(2rem, 5vw, 4rem);
+            text-align: center;
+            padding: 2rem;
+            background: var(--card-bg);
+            border-radius: 1.5rem;
+            border: 1px solid rgba(110, 125, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            margin: 1rem 0;
+            animation: fadeIn 0.5s ease-out;
+            transition: all 0.3s ease;
+        }
+
+        .question-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(26, 28, 46, 0.9);
+            border-radius: 1rem;
+            max-height: 30vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) var(--primary-bg);
+        }
+
+        .question-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .question-list::-webkit-scrollbar-track {
+            background: var(--primary-bg);
+        }
+
+        .question-list::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 4px;
+        }
+
+        .question-card {
+            background: var(--card-bg);
+            padding: 1rem;
+            border-radius: 0.8rem;
+            border: 1px solid rgba(110, 125, 255, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: fadeInUp 0.5s ease-out;
+            font-size: 1.1rem;
+            line-height: 1.5;
+        }
+
+        .question-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(110, 125, 255, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .current-question {
+                font-size: clamp(1.5rem, 4vw, 2.5rem);
+                padding: 1rem;
+            }
+
+            .question-list {
+                grid-template-columns: 1fr;
+                max-height: 40vh;
+            }
+        }
+
+        .loading {
+            position: relative;
+        }
+
+        .loading::after {
+            content: '...';
+            animation: dots 1.5s steps(4, end) infinite;
+            display: inline-block;
+            width: 0;
+            overflow: hidden;
+            vertical-align: bottom;
+        }
+
+        @keyframes dots {
+            to {
+                width: 1.25em;
+            }
+        }
+
+        .cyber-line {
+            position: fixed;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+            width: 100%;
+            animation: scan 8s linear infinite;
+            opacity: 0.5;
+        }
+
+        @keyframes scan {
+            0% {
+                top: -10%;
+            }
+            100% {
+                top: 110%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="cyber-line"></div>
+    <div class="container">
+        <header class="header">
+            <h1>Question Display</h1>
+        </header>
+        
+        <div id="currentQuestion" class="current-question loading">
+            Waiting...
+        </div>
+
+        <div id="questionList" class="question-list"></div>
+    </div>
+
+    <!-- 引入 js-yaml -->
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+    <script>
+        let appConfig = {};
+        let ws;
+
+        async function loadConfig() {
+            // 加载配置文件
+            const response = await fetch('config/config.yaml');
+            const text = await response.text();
+            appConfig = jsyaml.load(text);
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadConfig();
+            initializeApp();
+        });
+
+        function initializeApp() {
+            ws = new WebSocket(appConfig.ws.endpoint);
+
+            ws.onmessage = function(event) {
+                loadQuestions();
+            };
+
+            // 首次加载
+            loadQuestions();
+            // 定期刷新
+            setInterval(loadQuestions, 5000);
+        }
+
+        async function loadQuestions() {
+            try {
+                const response = await fetch(`${appConfig.api.base}/questions/${appConfig.session.id}`);
+                const questions = await response.json();
+                updateDisplay(questions);
+            } catch (error) {
+                console.error('加载失败:', error);
+            }
+        }
+
+        function updateDisplay(questions) {
+            const currentQuestion = questions.find(q => q.status === 'showing');
+            const currentDiv = document.getElementById('currentQuestion');
+
+            if (currentQuestion) {
+                currentDiv.textContent = currentQuestion.content;
+                currentDiv.classList.remove('loading');
+            } else {
+                currentDiv.textContent = 'Waiting...';
+                currentDiv.classList.add('loading');
+            }
+
+            const pendingQuestions = questions.filter(q => q.status === 'pending');
+            const questionList = document.getElementById('questionList');
+
+            questionList.innerHTML = pendingQuestions
+                .map(q => `
+                    <div class="question-card animate__animated animate__fadeInUp">
+                        ${q.content}
+                    </div>
+                `).join('');
+        }
+
+        // 响应式高度调整
+        window.addEventListener('resize', function() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        });
+    </script>
+</body>
+</html>
