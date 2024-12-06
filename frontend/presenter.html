@@ -246,7 +246,7 @@
 
         async function loadQuestions() {
             try {
-                const response = await fetch(`${appConfig.api.base}/questions/${appConfig.session.id}`);
+                const response = await fetch(`${appConfig.api.endpoint}/questions/${appConfig.session.id}`);
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
@@ -280,7 +280,7 @@
         async function deleteQuestion(id) {
             if (!confirm('确定要删除这个问题吗？')) return;
             try {
-                await fetch(`${appConfig.api.base}/question/${id}`, {
+                await fetch(`${appConfig.api.endpoint}/question/${id}`, {
                     method: 'DELETE'
                 });
                 loadQuestions();
@@ -291,7 +291,7 @@
 
         async function markAsFinished(id) {
             try {
-                await fetch(`${appConfig.api.base}/question/status`, {
+                await fetch(`${appConfig.api.endpoint}/question/status`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id, status: 'finished' })
@@ -316,7 +316,7 @@
         async function showQuestion() {
             if (!currentQuestionId) return;
             try {
-                const response = await fetch(`${appConfig.api.base}/question/status`, {
+                const response = await fetch(`${appConfig.api.endpoint}/question/status`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
