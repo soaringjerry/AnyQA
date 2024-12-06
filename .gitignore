@@ -1,10 +1,10 @@
 # 忽略单个文件
 config.go
 
-# 忽略整个config文件夹
-backend/config/
-frontend/config/
+# 不忽略整个目录，而是忽略其中所有非example的文件
+backend/config/*
+frontend/config/*
 
-# 保留example
-!backend/config/config.go.example
-!frontend/config/config.yaml.example
+# 保留example文件
+!backend/config/*.example
+!frontend/config/*.example
