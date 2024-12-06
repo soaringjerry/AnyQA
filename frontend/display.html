@@ -218,7 +218,7 @@
 
         async function loadQuestions() {
             try {
-                const response = await fetch(`${appConfig.api.base}/questions/${appConfig.session.id}`);
+                const response = await fetch(`${appConfig.api.endpoint}/questions/${appConfig.session.id}`);
                 const questions = await response.json();
                 updateDisplay(questions);
             } catch (error) {
