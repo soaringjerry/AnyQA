@@ -1,5 +1,5 @@
 api:
-  base: "https://example.com/api/question"
+  base: "https://example.com/api"
 
 session:
   id: "test-session"
