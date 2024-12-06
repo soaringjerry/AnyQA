@@ -5,3 +5,6 @@ config.go
 backend/config/
 frontend/config/
 
+# 保留example
+!backend/config/config.go.example
+!frontend/config/config.yaml.example
