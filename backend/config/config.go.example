@@ -1,0 +1,54 @@
+package config
+
+import (
+	"fmt"
+	"os"
+)
+
+type Config struct {
+	// 数据库相关
+	DBUser     string
+	DBPassword string
+	DBHost     string
+	DBPort     string
+	DBName     string
+
+	// OpenAI相关
+	OpenAIAPIKey string
+	OpenAIAPIUrl string
+	OpenAIModel  string
+
+	// 服务端口
+	ServerPort string
+}
+
+// NewConfig 从环境变量或默认值初始化配置
+func NewConfig() *Config {
+	cfg := &Config{
+		// 从环境变量中读取，如果不存在则使用默认值
+		DBUser:       getEnv("DB_USER", "root"),
+		DBPassword:   getEnv("DB_PASSWORD", "YOUR-PASSWORD"),
+		DBHost:       getEnv("DB_HOST", "YOUR-HOST"),
+		DBPort:       getEnv("DB_PORT", "3306"),
+		DBName:       getEnv("DB_NAME", "YOUR-DB-NAME"),
+		OpenAIAPIKey: getEnv("OPENAI_API_KEY", "YOUR-OPENAI-API-KEY"),
+		OpenAIAPIUrl: getEnv("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions"),
+		OpenAIModel:  getEnv("OPENAI_MODEL", "chatgpt-4o-latest"),
+		ServerPort:   getEnv("SERVER_PORT", ":8080"),
+	}
+	return cfg
+}
+
+// GetDBDSN 返回用于sql.Open的数据库连接DSN
+func (c *Config) GetDBDSN() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName)
+}
+
+// 辅助函数：若环境变量不存在则使用默认值
+func getEnv(key, defaultVal string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultVal
+}
