@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>问答空间</title>
+
+    <!-- 引入动画库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <style>
+        :root {
+            --primary-color: #FF69B4;
+            --secondary-color: #FFB7C5;
+            --accent-color: #FF1493;
+            --text-color: #4A4A4A;
+            --bg-color: #FFF0F5;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        background: linear-gradient(140deg, #fdfbfb 0%, #ebedee 100%);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 95%;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(255, 105, 180, 0.15);
+            backdrop-filter: blur(5px);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .mascot {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 150px;
+            height: 150px;
+            background-image: url('/api/placeholder/150/150');
+            background-size: contain;
+            background-repeat: no-repeat;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .mascot {
+                width: 100px;
+                height: 100px;
+                bottom: 10px;
+                right: 10px;
+            }
+        }
+
+        .question-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        textarea {
+            height: 150px;
+            padding: 15px;
+            border: 2px solid var(--secondary-color);
+            border-radius: 15px;
+            font-size: 16px;
+            resize: vertical;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 15px rgba(255, 105, 180, 0.2);
+        }
+
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            background: var(--accent-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 105, 180, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            font-weight: bold;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .success {
+            background: rgba(212, 237, 218, 0.9);
+            color: #155724;
+            animation: fadeInUp 0.5s ease forwards;
+        }
+
+        .error {
+            background: rgba(248, 215, 218, 0.9);
+            color: #721c24;
+            animation: fadeInUp 0.5s ease forwards;
+        }
+
+        /* 樱花飘落动画 */
+        .sakura {
+            position: fixed;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        @keyframes falling {
+            0% {
+                transform: translateY(-100%) rotate(0deg);
+            }
+            100% {
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+
+        /* 响应式设计优化 */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+                width: 100%;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            textarea {
+                height: 120px;
+            }
+
+            button {
+                padding: 12px 24px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 引入js-yaml库 -->
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+    <!-- 引入配置文件 -->
+    <script>
+        let appConfig = {};
+    
+        async function loadConfig() {
+            const response = await fetch('config/config.yaml');
+            const text = await response.text();
+            appConfig = jsyaml.load(text);
+        }
+    
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadConfig();
+        });
+    </script>
+    <div class="container animate__animated animate__fadeIn">
+        <h1 class="animate__animated animate__bounceIn">✨ Questions here ✨</h1>
+        <div class="question-form">
+            <textarea id="question" placeholder="type here..." class="animate__animated animate__fadeInUp"></textarea>
+            <button onclick="submitQuestion()" class="animate__animated animate__fadeInUp">Send Question</button>
+        </div>
+        <div id="status" class="status"></div>
+    </div>
+    <div class="mascot"></div>
+
+    <script>
+        // 创建樱花效果
+        function createSakura() {
+            const sakura = document.createElement('div');
+            sakura.className = 'sakura';
+            sakura.style.left = Math.random() * window.innerWidth + 'px';
+            sakura.innerHTML = '🌸';
+            sakura.style.fontSize = (Math.random() * 20 + 10) + 'px';
+            sakura.style.opacity = Math.random() * 0.6 + 0.4;
+            sakura.style.animation = `falling ${Math.random() * 3 + 2}s linear infinite`;
+            document.body.appendChild(sakura);
+
+            setTimeout(() => {
+                sakura.remove();
+            }, 5000);
+        }
+
+        // 定期创建樱花
+        setInterval(createSakura, 300);
+
+        async function submitQuestion() {
+            const questionInput = document.getElementById('question');
+            const content = questionInput.value;
+            if (!content.trim()) return;
+
+            const button = document.querySelector('button');
+            button.disabled = true;
+            button.style.opacity = '0.7';
+
+            try {
+                const response = await fetch(appConfig.api.endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sessionId: appConfig.session.id,
+                        content: content
+                    })
+                });
+
+                
+                if (response.ok) {
+                    showStatus('Send successful！', 'success');
+                    questionInput.value = '';
+                    // 添加成功动画
+                    const mascot = document.querySelector('.mascot');
+                    mascot.style.transform = 'translateY(-20px)';
+                    setTimeout(() => {
+                        mascot.style.transform = 'translateY(0)';
+                    }, 500);
+                } else {
+                    showStatus('提交失败，请稍后重试', 'error');
+                }
+            } catch (error) {
+                showStatus('网络错误，请检查连接', 'error');
+            } finally {
+                button.disabled = false;
+                button.style.opacity = '1';
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type} animate__animated animate__fadeInUp`;
+            status.style.opacity = '1';
+            
+            setTimeout(() => {
+                status.style.opacity = '0';
+            }, 3000);
+        }
+
+        // 添加键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                submitQuestion();
+            }
+        });
+    </script>
+</body>
+</html>
