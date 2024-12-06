@@ -1,0 +1,8 @@
+api:
+  endpoint: "https://qaapi.jerryspace.one/api"
+
+session:
+  id: "test-session"
+
+ws:
+  endpoint: "wss://qaapi.jerryspace.one/api/ws"
