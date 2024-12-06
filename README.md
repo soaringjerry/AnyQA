@@ -33,16 +33,15 @@ CREATE TABLE IF NOT EXISTS questions (
 );
 ```
 
-2. 配置后端
+2. 配置后端及Config
 ```bash
 # 安装依赖
-go mod init qa-system
+go mod init github.com/soaringjerry/AnyQA
 go get github.com/gin-gonic/gin
 go get github.com/go-sql-driver/mysql
 go get github.com/gorilla/websocket
 
-# 配置OpenAI API Key
-# 在main.go中设置OPENAI_API_KEY
+# 配置frontend和backend里面的config
 ```
 
 3. 运行系统
