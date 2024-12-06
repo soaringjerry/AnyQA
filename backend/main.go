@@ -35,7 +35,7 @@ func init() {
 	if err != nil {
 		panic("数据库连接失败: " + err.Error())
 	}
-	fmt.Println("数据库连接接成功!")
+	fmt.Println("数据库连接成功!")
 }
 
 func main() {
