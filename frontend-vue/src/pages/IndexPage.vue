@@ -20,8 +20,18 @@
           <h1 class="text-center animate__animated animate__bounceIn">
             ✨ Questions here ✨
           </h1>
-          
-          <div class="question-form">
+
+          <!-- 如果配置加载出现错误 -->
+          <div v-if="configError" class="status error animate__animated animate__fadeInUp">
+            系统初始化失败，请刷新页面重试
+          </div>
+          <!-- 如果配置尚未加载完成 (可选，可以在此处放一个加载中状态) -->
+          <div v-else-if="!config" class="status loading animate__animated animate__fadeInUp">
+            正在加载配置...
+          </div>
+
+          <!-- 问题输入框和提交按钮，只有在配置加载成功后才显示 -->
+          <div v-else class="question-form">
             <v-textarea
               v-model="question"
               placeholder="type here..."
@@ -75,8 +85,7 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { useConfig } from '../composables/useConfig'
-import 'animate.css'
+import jsyaml from 'js-yaml'
 
 const question = ref('')
 const statusMessage = ref('')
@@ -87,7 +96,33 @@ const sakuras = ref([])
 let sakuraId = 0
 let sakuraInterval = null
 
-const { config, configError } = useConfig()
+// 配置相关状态
+const config = ref(null)
+const configError = ref(null)
+
+// 加载配置函数
+async function loadConfig() {
+  try {
+    const response = await fetch('/src/config/config.yaml')
+    if (!response.ok) {
+      throw new Error(`加载失败: ${response.status}`)
+    }
+    const text = await response.text()
+    const conf = jsyaml.load(text)
+
+    if (!conf?.api?.endpoint) {
+      throw new Error('缺少 api.endpoint 配置')
+    }
+    if (!conf?.session?.id) {
+      throw new Error('缺少 session.id 配置')
+    }
+
+    config.value = conf
+  } catch (error) {
+    console.error('配置加载错误:', error)
+    configError.value = error.message
+  }
+}
 
 // 状态展示逻辑
 function showStatus(message, type) {
@@ -130,10 +165,10 @@ async function submitQuestion() {
       question.value = ''
       // 吉祥物动画
       if (mascot.value) {
-        mascot.value.$el.style.transform = 'translateY(-20px)'
+        mascot.value.style.transform = 'translateY(-20px)'
         setTimeout(() => {
           if (mascot.value) {
-            mascot.value.$el.style.transform = 'translateY(0)'
+            mascot.value.style.transform = 'translateY(0)'
           }
         }, 500)
       }
@@ -151,28 +186,25 @@ async function submitQuestion() {
 // 樱花效果
 function createSakura() {
   const id = sakuraId++
-  const startPositionLeft = Math.random() * window.innerWidth
-  const endPositionLeft = startPositionLeft + (Math.random() * 200 - 100) // 随机左右飘动
   const duration = Math.random() * 3 + 2  // 2-5秒的随机时长
   
   const style = {
-    left: `${startPositionLeft}px`,
-    animation: `falling ${duration}s linear forwards`,
-    transform: 'translateY(-20px)', // 初始位置在屏幕上方
+    left: `${Math.random() * window.innerWidth}px`,
+    top: '-20px',
+    fontSize: `${Math.random() * 20 + 10}px`,
+    opacity: Math.random() * 0.6 + 0.4,
+    animation: `falling ${duration}s linear forwards`
   }
 
   sakuras.value.push({ id, style })
   
-  // 确保动画结束后移除樱花
   setTimeout(() => {
-    const index = sakuras.value.findIndex(s => s.id === id)
-    if (index !== -1) {
-      sakuras.value.splice(index, 1)
-    }
+    sakuras.value = sakuras.value.filter(s => s.id !== id)
   }, duration * 1000)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadConfig()
   sakuraInterval = setInterval(createSakura, 500)
 })
 
@@ -200,6 +232,7 @@ onBeforeUnmount(() => {
   height: 100vh;
   pointer-events: none;
   z-index: 1;
+  overflow: hidden;
 }
 
 .sakura {
@@ -207,7 +240,6 @@ onBeforeUnmount(() => {
   z-index: 1;
   pointer-events: none;
   user-select: none;
-  will-change: transform;
 }
 
 .page-wrapper {
@@ -243,6 +275,7 @@ h1 {
   font-size: 2.5em;
   margin-bottom: 30px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
 .question-form {
@@ -325,19 +358,12 @@ h1 {
 
 @keyframes falling {
   0% {
-    transform: translateY(-20px) rotate(0deg);
-  }
-  25% {
-    transform: translateY(25vh) rotate(90deg);
-  }
-  50% {
-    transform: translateY(50vh) rotate(180deg);
-  }
-  75% {
-    transform: translateY(75vh) rotate(270deg);
+    transform: translate(0, -20px) rotate(0deg);
+    opacity: 1;
   }
   100% {
-    transform: translateY(105vh) rotate(360deg);
+    transform: translate(0, 100vh) rotate(360deg);
+    opacity: 0.6;
   }
 }
 
