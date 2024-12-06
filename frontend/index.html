@@ -23,13 +23,13 @@
         }
 
         body {
-        font-family: 'Helvetica Neue', Arial, sans-serif;
-        background: linear-gradient(140deg, #fdfbfb 0%, #ebedee 100%);
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 20px;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(140deg, #fdfbfb 0%, #ebedee 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
         }
 
         .container {
@@ -140,6 +140,32 @@
             animation: fadeInUp 0.5s ease forwards;
         }
 
+        /* 加载中状态样式 */
+        .loading {
+            background: rgba(255, 255, 255, 0.9);
+            color: #4A4A4A;
+            animation: fadeInUp 0.5s ease forwards;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-left: 10px;
+            border: 2px solid var(--primary-color);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* 樱花飘落动画 */
         .sakura {
             position: fixed;
@@ -184,15 +210,45 @@
     <!-- 引入配置文件 -->
     <script>
         let appConfig = {};
-    
+
         async function loadConfig() {
-            const response = await fetch('config/config.yaml');
-            const text = await response.text();
-            appConfig = jsyaml.load(text);
+            try {
+                // 使用相对路径
+                const response = await fetch('./config/config.yaml');
+                if (!response.ok) {
+                    throw new Error(`加载失败: ${response.status}`);
+                }
+                const text = await response.text();
+                const config = jsyaml.load(text);
+
+                // 验证配置
+                if (!config?.api?.endpoint) {
+                    throw new Error('缺少 api.endpoint 配置');
+                }
+                if (!config?.session?.id) {
+                    throw new Error('缺少 session.id 配置');
+                }
+
+                appConfig = config;
+                return true;
+            } catch (error) {
+                console.error('配置加载错误:', error);
+                showStatus('配置加载失败: ' + error.message, 'error');
+                return false;
+            }
         }
-    
+
+        // 更新初始化逻辑
         document.addEventListener('DOMContentLoaded', async () => {
-            await loadConfig();
+            const configLoaded = await loadConfig();
+            if (configLoaded) {
+                console.log('配置加载成功，启用按钮');
+                const submitBtn = document.querySelector('button');
+                submitBtn.disabled = false;
+            } else {
+                console.log('配置加载失败，按钮保持禁用');
+                showStatus('系统初始化失败，请刷新页面重试', 'error');
+            }
         });
     </script>
     <div class="container animate__animated animate__fadeIn">
@@ -230,12 +286,22 @@
             const content = questionInput.value;
             if (!content.trim()) return;
 
+            // 首先检查配置是否正确加载
+            if (!appConfig?.api?.endpoint) {
+                showStatus('系统配置错误', 'error');
+                return;
+            }
+
             const button = document.querySelector('button');
             button.disabled = true;
             button.style.opacity = '0.7';
 
+            // 显示加载中状态
+            showStatus('提交中...', 'loading');
+
             try {
-                const response = await fetch(appConfig.api.endpoint, {
+                // 正确从配置中获取并拼接 URL
+                const response = await fetch(`${appConfig.api.endpoint}/question`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -246,21 +312,20 @@
                     })
                 });
 
-                
                 if (response.ok) {
-                    showStatus('Send successful！', 'success');
+                    showStatus('发送成功！', 'success');
                     questionInput.value = '';
-                    // 添加成功动画
                     const mascot = document.querySelector('.mascot');
                     mascot.style.transform = 'translateY(-20px)';
                     setTimeout(() => {
                         mascot.style.transform = 'translateY(0)';
                     }, 500);
                 } else {
-                    showStatus('提交失败，请稍后重试', 'error');
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
             } catch (error) {
-                showStatus('网络错误，请检查连接', 'error');
+                console.error('提交错误:', error);
+                showStatus('提交失败，请稍后重试', 'error');
             } finally {
                 button.disabled = false;
                 button.style.opacity = '1';
@@ -272,13 +337,15 @@
             status.textContent = message;
             status.className = `status ${type} animate__animated animate__fadeInUp`;
             status.style.opacity = '1';
-            
-            setTimeout(() => {
-                status.style.opacity = '0';
-            }, 3000);
+
+            if (type !== 'loading') {
+                setTimeout(() => {
+                    status.style.opacity = '0';
+                }, 3000);
+            }
         }
 
-        // 添加键盘快捷键
+        // 添加键盘快捷键 Ctrl+Enter 提交
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'Enter') {
                 submitQuestion();
