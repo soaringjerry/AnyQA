@@ -223,7 +223,7 @@
         let modal = document.getElementById('modal');
 
         async function loadConfig() {
-            const response = await fetch('../config/config.yaml');
+            const response = await fetch('config/config.yaml');
             const text = await response.text();
             appConfig = jsyaml.load(text);
         }

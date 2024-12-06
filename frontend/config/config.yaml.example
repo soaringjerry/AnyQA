@@ -1,5 +1,5 @@
 api:
-  endpoint: "https://example.com/api/question"
+  base: "https://example.com/api/question"
 
 session:
   id: "test-session"
