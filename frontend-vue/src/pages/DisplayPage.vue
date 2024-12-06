@@ -1,5 +1,6 @@
+<!-- QuestionDisplay.vue -->
 <template>
-  <div>
+  <div class="page-root">
     <div class="cyber-line"></div>
     <div class="container">
       <header class="header">
@@ -19,7 +20,7 @@
           :key="index"
           class="question-card animate__animated animate__fadeInUp"
         >
-          {{ q.content }}
+          <div class="question-content">{{ q.content }}</div>
         </div>
       </div>
     </div>
@@ -28,17 +29,14 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import config from '../config/index.js' // 假设已在此文件加载YAML配置
-// config.api.endpoint, config.ws.endpoint, config.session.id
+import config from '../config/index.js'
 
 const questions = ref([])
 
-// 计算当前展示问题
 const currentQuestion = computed(() => {
   return questions.value.find(q => q.status === 'showing')
 })
 
-// 计算待定问题列表
 const pendingQuestions = computed(() => {
   return questions.value.filter(q => q.status === 'pending')
 })
@@ -50,37 +48,45 @@ async function loadQuestions() {
   try {
     const response = await fetch(`${config.api.endpoint}/questions/${config.session.id}`)
     if (!response.ok) {
-      console.error('加载问题失败:', response.status)
+      console.error('Failed to load questions:', response.status)
       return
     }
     const data = await response.json()
     questions.value = data
   } catch (error) {
-    console.error('加载失败:', error)
+    console.error('Loading failed:', error)
   }
 }
 
 function initializeApp() {
-  // 建立 WebSocket 连接
+  // Initialize WebSocket connection
   ws = new WebSocket(config.ws.endpoint)
   ws.onmessage = () => {
-    // 收到消息后刷新列表
     loadQuestions()
   }
-
-  // 首次加载
+  
+  // Initial load
   loadQuestions()
-
-  // 定期刷新
+  
+  // Periodic refresh
   intervalId = setInterval(loadQuestions, 5000)
 }
 
 onMounted(() => {
   initializeApp()
+  
+  // Add these meta tags to ensure proper viewport behavior
+  const meta = document.createElement('meta')
+  meta.name = 'viewport'
+  meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
+  document.head.appendChild(meta)
+  
+  // Prevent scrolling on mobile devices
+  document.body.style.overflow = 'hidden'
+  document.documentElement.style.overflow = 'hidden'
 })
 
 onUnmounted(() => {
-  // 清理资源
   if (ws) {
     ws.close()
     ws = null
@@ -89,174 +95,234 @@ onUnmounted(() => {
     clearInterval(intervalId)
     intervalId = null
   }
+  
+  // Clean up added styles
+  document.body.style.overflow = ''
+  document.documentElement.style.overflow = ''
 })
 </script>
 
-<style scoped>
-:root {
-    --primary-bg: #1a1c2e;
-    --secondary-bg: #2a2d4a;
-    --accent-color: #6e7dff;
-    --text-primary: #ffffff;
-    --text-secondary: #b3b9ff;
-    --card-bg: rgba(42, 45, 74, 0.8);
-}
-
+<style>
+/* Reset CSS */
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-body {
-    background: var(--primary-bg);
-    color: var(--text-primary);
-    font-family: 'Arial', sans-serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background-image: 
-        radial-gradient(circle at 10% 20%, rgba(110, 125, 255, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 90% 80%, rgba(110, 125, 255, 0.1) 0%, transparent 50%);
-    overflow: hidden;
+:root {
+  --primary-bg: #1a1c2e;
+  --secondary-bg: #2a2d4a;
+  --accent-color: #6e7dff;
+  --text-primary: #ffffff;
+  --text-secondary: #b3b9ff;
+  --card-bg: rgba(42, 45, 74, 0.8);
+  --border-color: rgba(110, 125, 255, 0.2);
+  --glow-color: rgba(110, 125, 255, 0.5);
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  position: fixed;
+  background: var(--primary-bg);
+}
+
+#app {
+  height: 100%;
+  width: 100%;
+}
+</style>
+
+<style scoped>
+.page-root {
+  height: 100vh;
+  width: 100vw;
+  background: var(--primary-bg);
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 2rem;
-    gap: 2rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  gap: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(110, 125, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(110, 125, 255, 0.1) 0%, transparent 50%);
+  overflow: hidden;
 }
 
 .header {
-    text-align: center;
-    padding: 1rem;
-    background: var(--secondary-bg);
-    border-radius: 1rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    animation: slideInDown 0.5s ease-out;
+  text-align: center;
+  padding: 1rem;
+  background: var(--secondary-bg);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  animation: slideInDown 0.5s ease-out;
+  flex-shrink: 0;
 }
 
 .header h1 {
-    font-size: 1.5rem;
-    color: var(--accent-color);
-    text-transform: uppercase;
-    letter-spacing: 2px;
+  font-size: 1.5rem;
+  color: var(--accent-color);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
 }
 
 .current-question {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(2rem, 5vw, 4rem);
-    text-align: center;
-    padding: 2rem;
-    background: var(--card-bg);
-    border-radius: 1.5rem;
-    border: 1px solid rgba(110, 125, 255, 0.2);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    margin: 1rem 0;
-    animation: fadeIn 0.5s ease-out;
-    transition: all 0.3s ease;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(2rem, 5vw, 4rem);
+  text-align: center;
+  padding: 2rem;
+  background: var(--card-bg);
+  border-radius: 1.5rem;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  margin: 1rem 0;
+  animation: fadeIn 0.5s ease-out;
+  transition: all 0.3s ease;
+  position: relative;
+  color: var(--text-primary);
+  min-height: 200px;
 }
 
-.current-question.loading {
-    position: relative;
+.current-question:not(.loading) {
+  box-shadow: 0 0 20px var(--glow-color), 0 0 40px var(--glow-color);
 }
 
 .current-question.loading::after {
-    content: '...';
-    animation: dots 1.5s steps(4, end) infinite;
-    display: inline-block;
-    width: 0;
-    overflow: hidden;
-    vertical-align: bottom;
+  content: '';
+  animation: dots 1.5s steps(4, end) infinite;
 }
 
 .question-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-    padding: 1rem;
-    background: rgba(26, 28, 46, 0.9);
-    border-radius: 1rem;
-    max-height: 30vh;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--accent-color) var(--primary-bg);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.8rem;
+  padding: 1rem;
+  background: rgba(26, 28, 46, 0.9);
+  border-radius: 1rem;
+  height: 30vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-color) var(--primary-bg);
+  animation: fadeInUp 0.5s ease-out;
+  flex-shrink: 0;
 }
 
 .question-list::-webkit-scrollbar {
-    width: 8px;
+  width: 8px;
 }
 
 .question-list::-webkit-scrollbar-track {
-    background: var(--primary-bg);
+  background: var(--primary-bg);
 }
 
 .question-list::-webkit-scrollbar-thumb {
-    background: var(--accent-color);
-    border-radius: 4px;
+  background: var(--accent-color);
+  border-radius: 4px;
 }
 
 .question-card {
-    background: var(--card-bg);
-    padding: 1rem;
-    border-radius: 0.8rem;
-    border: 1px solid rgba(110, 125, 255, 0.1);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    font-size: 1.1rem;
-    line-height: 1.5;
+  background: var(--card-bg);
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  border: 1px solid var(--border-color);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--text-primary);
+  max-height: 100px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
 }
 
 .question-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(110, 125, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px var(--glow-color);
 }
 
-@media (max-width: 768px) {
-    .container {
-        padding: 1rem;
-    }
-
-    .current-question {
-        font-size: clamp(1.5rem, 4vw, 2.5rem);
-        padding: 1rem;
-    }
-
-    .question-list {
-        grid-template-columns: 1fr;
-        max-height: 40vh;
-    }
-}
-
-@keyframes dots {
-    to {
-        width: 1.25em;
-    }
+.question-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+  margin: 0;
 }
 
 .cyber-line {
-    position: fixed;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
-    width: 100%;
-    animation: scan 8s linear infinite;
-    opacity: 0.5;
+  position: fixed;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+  width: 100%;
+  animation: scan 8s linear infinite;
+  opacity: 0.5;
+  z-index: 100;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .current-question {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    padding: 1rem;
+    min-height: 150px;
+  }
+
+  .question-list {
+    grid-template-columns: 1fr;
+    height: 40vh;
+    gap: 0.6rem;
+    padding: 0.8rem;
+  }
+
+  .question-card {
+    padding: 0.6rem;
+    max-height: 80px;
+    font-size: 0.9rem;
+  }
+
+  .question-content {
+    -webkit-line-clamp: 2;
+  }
+}
+
+@keyframes dots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80% { content: '...'; }
+  100% { content: ''; }
 }
 
 @keyframes scan {
-    0% {
-        top: -10%;
-    }
-    100% {
-        top: 110%;
-    }
+  0% { top: -10%; }
+  100% { top: 110%; }
 }
 
-/* 您可以根据需要定义fadeIn、slideInDown的关键帧动画 */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -279,7 +345,7 @@ body {
     opacity: 0;
   }
   to {
-    transform: translateY(0%);
+    transform: translateY(0);
     opacity: 1;
   }
 }
