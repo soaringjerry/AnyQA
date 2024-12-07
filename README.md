@@ -12,6 +12,7 @@
 ## 技术栈
 
 - 前端：原生HTML/CSS/JavaScript
+- Vue重制版前端：Vue 3 + Vite + vue-router + Vuetify + js-yaml（用于解析 YAML 配置文件）
 - 后端：Go (Gin框架)
 - 数据库：MySQL
 - AI：OpenAI API
