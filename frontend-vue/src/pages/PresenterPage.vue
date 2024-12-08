@@ -53,14 +53,17 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import config from '../config/index.js' // 假设此文件已加载YAML配置
+import config from '../config/index.js'
 import { marked } from 'marked'
+import { useRoute } from 'vue-router'
 
 const questions = ref([])  
 const showModal = ref(false)
 const currentQuestionId = ref(null)
 const currentQuestionContent = ref('')
 const currentQuestionAiSuggestion = ref('')
+const route = useRoute()
+const sessionId = computed(() => route.query.sessionId)
 
 let intervalId = null
 
@@ -81,7 +84,10 @@ const currentAISuggestionMarkdown = computed(() => marked.parse(currentQuestionA
 
 async function loadQuestions() {
   try {
-    const response = await fetch(`${config.api.endpoint}/questions/${config.session.id}`)
+    if (!sessionId.value) {
+      throw new Error('缺少 sessionId 参数')
+    }
+    const response = await fetch(`${config.api.endpoint}/questions/${sessionId.value}`)
     if (!response.ok) throw new Error('加载问题列表失败')
     const data = await response.json()
     questions.value = data

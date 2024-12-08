@@ -28,10 +28,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watchEffect } from 'vue'
 import config from '../config/index.js'
 
 const questions = ref([])
+const sessionId = ref('')
+
+// 获取 URL 中的 sessionId
+watchEffect(() => {
+  const urlParams = new URLSearchParams(window.location.hash.split('?')[1])
+  sessionId.value = urlParams.get('sessionId')
+})
 
 const currentQuestion = computed(() => {
   return questions.value.find(q => q.status === 'showing')
@@ -46,7 +53,7 @@ let intervalId = null
 
 async function loadQuestions() {
   try {
-    const response = await fetch(`${config.api.endpoint}/questions/${config.session.id}`)
+    const response = await fetch(`${config.api.endpoint}/questions/${sessionId.value}`)
     if (!response.ok) {
       console.error('Failed to load questions:', response.status)
       return
