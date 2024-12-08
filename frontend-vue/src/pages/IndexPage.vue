@@ -86,6 +86,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import jsyaml from 'js-yaml'
+import { useRoute } from 'vue-router'
 
 const question = ref('')
 const statusMessage = ref('')
@@ -96,13 +97,22 @@ const sakuras = ref([])
 let sakuraId = 0
 let sakuraInterval = null
 
-// 配置相关状态
+// 修改配置相关状态
 const config = ref(null)
 const configError = ref(null)
+const sessionId = ref(null)
 
-// 加载配置函数
+const route = useRoute()
+
+// 修改加载配置函数
 async function loadConfig() {
   try {
+    sessionId.value = route.query.sessionId
+    
+    if (!sessionId.value) {
+      throw new Error('缺少 sessionId 参数')
+    }
+
     const response = await fetch('/src/config/config.yaml')
     if (!response.ok) {
       throw new Error(`加载失败: ${response.status}`)
@@ -112,9 +122,6 @@ async function loadConfig() {
 
     if (!conf?.api?.endpoint) {
       throw new Error('缺少 api.endpoint 配置')
-    }
-    if (!conf?.session?.id) {
-      throw new Error('缺少 session.id 配置')
     }
 
     config.value = conf
@@ -137,7 +144,7 @@ function showStatus(message, type) {
   }
 }
 
-// 提交问题
+// 修改提交问题函数中的 sessionId
 async function submitQuestion() {
   const content = question.value.trim()
   if (!content) return
@@ -155,7 +162,7 @@ async function submitQuestion() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sessionId: config.value.session.id,
+        sessionId: sessionId.value, // 使用从 URL 获取的 sessionId
         content
       })
     })
