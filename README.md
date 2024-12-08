@@ -18,6 +18,7 @@
 - AI：OpenAI API
 
 ## 快速开始
+> 对于 Vue 版本，请[点击这里](./vue/README.md)
 
 1. 配置数据库
 ```sql
