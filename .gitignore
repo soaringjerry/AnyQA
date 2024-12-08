@@ -4,7 +4,10 @@ config.go
 # 不忽略整个目录，而是忽略其中所有非example的文件
 backend/config/*
 frontend/config/*
+frontend-vue/src/config/*
 
 # 保留example文件
 !backend/config/*.example
 !frontend/config/*.example
+!frontend-vue/src/config/*.example
+!frontend-vue/src/config/index.js

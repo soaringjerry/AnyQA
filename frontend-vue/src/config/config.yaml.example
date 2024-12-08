@@ -1,0 +1,8 @@
+api:
+  endpoint: "https://example.com/api"
+
+session:
+  id: "alpha"
+
+ws:
+  endpoint: "wss://example.com/api/ws"
