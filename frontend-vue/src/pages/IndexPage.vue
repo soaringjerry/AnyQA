@@ -167,7 +167,12 @@ function submitQuestion() {
   
   // 立即清空输入
   question.value = ''
-  showStatus(t('message.success'), 'success')
+  showStatus(t('message.submitting'), 'loading')
+  
+  new Promise(resolve => setTimeout(resolve, 1000))
+    .then(() => {
+      showStatus(t('message.success'), 'success')
+    })
   
   // 使用 sendBeacon 发送数据
   navigator.sendBeacon(
