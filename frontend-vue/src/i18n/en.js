@@ -7,7 +7,8 @@ export default {
       success: 'Sent successfully!',
       submitError: 'Submission failed, please try again later',
       configError: 'System initialization failed, please refresh the page',
-      placeholder: 'Type here...'
+      placeholder: 'Type here...',
+      success: 'Sent successfully!',
     },
     nav: {
       Questionshere: '✨ Questions here ✨',

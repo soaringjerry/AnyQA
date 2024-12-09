@@ -7,7 +7,8 @@ export default {
       success: '发送成功！',
       submitError: '提交失败，请稍后重试',
       configError: '系统初始化失败，请刷新页面重试',
-      placeholder: '在这里输入...'
+      placeholder: '在这里输入...',
+      success: '发送成功！',
     },
     nav: {
       Questionshere: '✨ 提问空间 ✨',

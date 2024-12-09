@@ -160,49 +160,23 @@ function showStatus(message, type) {
 }
 
 // 修改提交问题函数中的 sessionId
-async function submitQuestion() {
+// 修改提交函数
+function submitQuestion() {
   const content = question.value.trim()
   if (!content) return
-
-  if (configError.value) {
-    showStatus('System configuration error', 'error')
-    return
-  }
-
-  isSubmitting.value = true
-  showStatus('提交中...', 'loading')
-
-  try {
-    const response = await fetch(`${config.value.api.endpoint}/question`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sessionId: sessionId.value, // 使用从 URL 获取的 sessionId
-        content
-      })
+  
+  // 立即清空输入
+  question.value = ''
+  showStatus(t('message.success'), 'success')
+  
+  // 使用 sendBeacon 发送数据
+  navigator.sendBeacon(
+    `${config.value.api.endpoint}/question`,
+    JSON.stringify({
+      sessionId: sessionId.value,
+      content: content
     })
-
-    if (response.ok) {
-      showStatus('发送成功！', 'success')
-      question.value = ''
-      // 吉祥物动画
-      if (mascot.value) {
-        mascot.value.style.transform = 'translateY(-20px)'
-        setTimeout(() => {
-          if (mascot.value) {
-            mascot.value.style.transform = 'translateY(0)'
-          }
-        }, 500)
-      }
-    } else {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-  } catch (error) {
-    console.error('提交错误:', error)
-    showStatus('提交失败，请稍后重试', 'error')
-  } finally {
-    isSubmitting.value = false
-  }
+  )
 }
 
 // 樱花效果
