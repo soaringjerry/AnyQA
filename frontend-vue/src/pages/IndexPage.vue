@@ -18,23 +18,27 @@
       <div class="content-container">
         <div class="container animate__animated animate__fadeIn">
           <h1 class="text-center animate__animated animate__bounceIn">
-            ✨ Questions here ✨
+             {{ $t('nav.Questionshere') }}
           </h1>
-
+          <!-- 添加语言切换按钮容器 -->
+          <div class="language-switcher">
+            <button @click="changeLang('zh')" class="lang-btn">{{ $t('button.chinese') }}</button>
+            <button @click="changeLang('en')" class="lang-btn">{{ $t('button.english') }}</button>
+          </div>
           <!-- 如果配置加载出现错误 -->
           <div v-if="configError" class="status error animate__animated animate__fadeInUp">
-            系统初始化失败，请刷新页面重试
+             {{ $t('message.configError') }}
           </div>
           <!-- 如果配置尚未加载完成 (可选，可以在此处放一个加载中状态) -->
           <div v-else-if="!config" class="status loading animate__animated animate__fadeInUp">
-            正在加载配置...
+             {{ $t('message.loading') }}
           </div>
 
           <!-- 问题输入框和提交按钮，只有在配置加载成功后才显示 -->
           <div v-else class="question-form">
             <v-textarea
               v-model="question"
-              placeholder="type here..."
+              :placeholder="$t('message.placeholder')"
               variant="outlined"
               :disabled="isSubmitting"
               rows="5"
@@ -51,7 +55,7 @@
               class="submit-btn animate__animated animate__fadeInUp"
               @click="submitQuestion"
             >
-              Send Question
+              {{ $t('button.send') }}
             </v-btn>
           </div>
 
@@ -133,7 +137,18 @@ async function loadConfig() {
 
 // 状态展示逻辑
 function showStatus(message, type) {
-  statusMessage.value = message
+  // 直接使用 i18n key 作为 message 参数会更好
+  // 这样可以避免字符串硬编码的比较
+  if (message === t('message.submitting')) {
+    statusMessage.value = t('message.submitting')
+  } else if (message === t('message.success')) {
+    statusMessage.value = t('message.success') 
+  } else if (message === t('message.submitError')) {
+    statusMessage.value = t('message.submitError')
+  } else {
+    // 对于非 i18n 的消息,直接显示
+    statusMessage.value = message
+  }
   statusType.value = type
   
   if (type !== 'loading') {
@@ -220,6 +235,14 @@ onBeforeUnmount(() => {
     clearInterval(sakuraInterval)
   }
 })
+
+import { useI18n } from 'vue-i18n'
+
+const { locale, t } = useI18n()
+
+function changeLang(lang) {
+  locale.value = lang
+}
 </script>
 
 <style scoped>
@@ -406,5 +429,48 @@ h1 {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* 添加语言切换按钮样式 */
+.language-switcher {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  display: flex;
+  gap: 10px;
+}
+
+.lang-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #FF69B4;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: bold;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 2px 10px rgba(255, 105, 180, 0.2);
+}
+
+.lang-btn:hover {
+  background: #FF69B4;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
+}
+
+/* 添加响应式样式 */
+@media (max-width: 768px) {
+  .language-switcher {
+    top: 10px;
+    right: 10px;
+  }
+  
+  .lang-btn {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
 }
 </style>
