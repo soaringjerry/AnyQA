@@ -4,6 +4,7 @@ import App from './App.vue'
 
 // 引入路由
 import router from './router/index.js'
+import i18n from './i18n'
 
 // 引入Vuetify的核心和样式
 import 'vuetify/styles' 
@@ -21,4 +22,5 @@ const vuetify = createVuetify({
 createApp(App)
   .use(router)    // 这里添加路由的使用
   .use(vuetify)
+  .use(i18n)
   .mount('#app')
