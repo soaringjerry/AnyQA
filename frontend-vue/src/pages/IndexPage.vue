@@ -169,19 +169,32 @@ function submitQuestion() {
   question.value = ''
   showStatus(t('message.submitting'), 'loading')
   
-  new Promise(resolve => setTimeout(resolve, 1000))
-    .then(() => {
-      showStatus(t('message.success'), 'success')
-    })
+  const data = {
+    sessionId: sessionId.value,
+    content: content
+  }
   
-  // 使用 sendBeacon 发送数据
-  navigator.sendBeacon(
-    `${config.value.api.endpoint}/question`,
-    JSON.stringify({
-      sessionId: sessionId.value,
-      content: content
-    })
-  )
+  // 创建一个检查状态码的请求
+  fetch(`${config.value.api.endpoint}/question`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => {
+    if (response.status === 200) {
+      showStatus(t('message.success'), 'success')
+    }
+  })
+  .catch(() => {
+    // 如果 fetch 失败，使用 sendBeacon 作为后备方案
+    navigator.sendBeacon(
+      `${config.value.api.endpoint}/question`,
+      JSON.stringify(data)
+    )
+    showStatus(t('message.success'), 'success')
+  })
 }
 
 // 樱花效果
