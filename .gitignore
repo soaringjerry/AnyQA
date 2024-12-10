@@ -6,6 +6,7 @@ backend/config/*
 frontend/config/*
 frontend-vue/src/config/*
 backend/backend.exe
+backend/bin
 
 # 保留example文件
 !backend/config/*.example

@@ -1,18 +1,44 @@
 <template>
   <v-container class="pa-4" max-width="600px">
     <v-card elevation="2" class="pa-4">
-      <v-card-title class="text-h5 pb-2 justify-center">
-        创建新的会话
+      <v-card-title class="text-h5 pb-2 justify-center position-relative">
+        {{ $t('title.createSession') }}
+        <div class="language-switcher">
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                color="primary"
+                class="lang-menu-btn"
+                icon
+              >
+                <v-icon>mdi-translate</v-icon>
+              </v-btn>
+            </template>
+            <v-list>
+              <v-list-item @click="changeLang('zh')">
+                <v-list-item-title>{{ $t('button.chinese') }}</v-list-item-title>
+              </v-list-item>
+              <v-list-item @click="changeLang('en')">
+                <v-list-item-title>{{ $t('button.english') }}</v-list-item-title>
+              </v-list-item>
+              <v-list-item @click="changeLang('jp')">
+                <v-list-item-title>{{ $t('button.japanese') }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+        </div>
       </v-card-title>
+      
       <v-card-subtitle class="text-center pb-4">
-        在这里快速生成一个全新会话并获取对应的访问链接和二维码。
+        {{ $t('title.sessionSetup') }}
       </v-card-subtitle>
       
       <v-divider class="mb-4"></v-divider>
 
       <v-card-text class="text-center">
         <div v-if="!sessionId">
-          <p class="mb-6">点击下方按钮生成一个新的 Session ID，并获得相应的访问链接。</p>
+          <p class="mb-6">{{ $t('message.clickToGenerate') }}</p>
           <div class="d-flex justify-center">
             <v-btn 
               color="primary" 
@@ -21,7 +47,7 @@
               rounded 
               class="px-6"
             >
-              开始
+              {{ $t('button.start') }}
             </v-btn>
           </div>
         </div>
@@ -33,20 +59,20 @@
             colored-border
             :icon="false"
           >
-            会话已成功生成！
+            {{ $t('message.sessionCreated') }}
           </v-alert>
-          <p class="text-body-1 mb-2">已生成的 Session ID: <strong>{{ sessionId }}</strong></p>
-          <p class="mb-4">请使用以下链接访问：</p>
+          <p class="text-body-1 mb-2">{{ $t('message.sessionIdGenerated') }} <strong>{{ sessionId }}</strong></p>
+          <p class="mb-4">{{ $t('message.useFollowingLinks') }}</p>
 
           <ul class="text-start mb-4">
-            <li class="mb-2">提问页面：<a :href="indexUrl" target="_blank">{{ indexUrl }}</a></li>
-            <li class="mb-2">管理后台：<a :href="presenterUrl" target="_blank">{{ presenterUrl }}</a></li>
-            <li class="mb-2">展示大屏：<a :href="displayUrl" target="_blank">{{ displayUrl }}</a></li>
+            <li class="mb-2">{{ $t('message.questionPage') }}<a :href="indexUrl" target="_blank">{{ indexUrl }}</a></li>
+            <li class="mb-2">{{ $t('message.adminPanel') }}<a :href="presenterUrl" target="_blank">{{ presenterUrl }}</a></li>
+            <li class="mb-2">{{ $t('message.displayScreen') }}<a :href="displayUrl" target="_blank">{{ displayUrl }}</a></li>
           </ul>
 
           <v-divider class="my-4"></v-divider>
 
-          <p class="mb-2">扫描下方二维码直接打开提问页面 (Index)：</p>
+          <p class="mb-2">{{ $t('message.scanQrCode') }}</p>
           <div class="d-flex justify-center">
             <canvas ref="qrCanvas" width="200" height="200"></canvas>
           </div>
@@ -55,7 +81,7 @@
 
       <v-card-actions v-if="sessionId" class="justify-center mt-4">
         <v-btn color="secondary" @click="createSession" rounded prepend-icon="mdi-refresh">
-          重新生成
+          {{ $t('button.regenerate') }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -65,6 +91,9 @@
 <script setup>
 import { ref, watchEffect, computed, nextTick } from 'vue'
 import QRCode from 'qrcode'
+import { useI18n } from 'vue-i18n'
+
+const { locale } = useI18n()
 
 // 假设域名为 yourdomain.com
 const baseDomain = window.location.origin
@@ -80,6 +109,10 @@ const createSession = () => {
 const indexUrl = computed(() => `${baseDomain}/#/?sessionId=${sessionId.value}`)
 const presenterUrl = computed(() => `${baseDomain}/#/presenter?sessionId=${sessionId.value}`)
 const displayUrl = computed(() => `${baseDomain}/#/display?sessionId=${sessionId.value}`)
+
+const changeLang = (lang) => {
+  locale.value = lang
+}
 
 watchEffect(async () => {
   if (sessionId.value) {
@@ -103,4 +136,15 @@ watchEffect(async () => {
 
 <style scoped>
 /* 根据需要定制样式 */
+
+.language-switcher {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.position-relative {
+  position: relative;
+}
 </style>
