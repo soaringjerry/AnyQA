@@ -5,31 +5,7 @@
     <div class="container">
       <header class="header">
         <h1>{{ $t('display.title') }}</h1>
-        <div class="language-switcher">
-          <v-menu>
-            <template v-slot:activator="{ props }">
-              <v-btn
-                v-bind="props"
-                color="primary"
-                class="lang-menu-btn"
-                icon
-              >
-                <v-icon>mdi-translate</v-icon>
-              </v-btn>
-            </template>
-            <v-list>
-              <v-list-item @click="changeLang('zh')">
-                <v-list-item-title>{{ $t('button.chinese') }}</v-list-item-title>
-              </v-list-item>
-              <v-list-item @click="changeLang('en')">
-                <v-list-item-title>{{ $t('button.english') }}</v-list-item-title>
-              </v-list-item>
-              <v-list-item @click="changeLang('jp')">
-                <v-list-item-title>{{ $t('button.japanese') }}</v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-menu>
-        </div>
+        <LanguageSwitcher />
       </header>
       
       <div 
@@ -56,8 +32,9 @@
 import { ref, computed, onMounted, onUnmounted, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import config from '../config/index.js'
+import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
 const questions = ref([])
 const sessionId = ref('')
@@ -135,11 +112,6 @@ onUnmounted(() => {
   document.body.style.overflow = ''
   document.documentElement.style.overflow = ''
 })
-
-// 添加语言切换函数
-const changeLang = (lang) => {
-  locale.value = lang
-}
 </script>
 
 <style>

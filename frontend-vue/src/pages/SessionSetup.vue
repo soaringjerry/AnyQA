@@ -3,31 +3,7 @@
     <v-card elevation="2" class="pa-4">
       <v-card-title class="text-h5 pb-2 justify-center position-relative">
         {{ $t('title.createSession') }}
-        <div class="language-switcher">
-          <v-menu>
-            <template v-slot:activator="{ props }">
-              <v-btn
-                v-bind="props"
-                color="primary"
-                class="lang-menu-btn"
-                icon
-              >
-                <v-icon>mdi-translate</v-icon>
-              </v-btn>
-            </template>
-            <v-list>
-              <v-list-item @click="changeLang('zh')">
-                <v-list-item-title>{{ $t('button.chinese') }}</v-list-item-title>
-              </v-list-item>
-              <v-list-item @click="changeLang('en')">
-                <v-list-item-title>{{ $t('button.english') }}</v-list-item-title>
-              </v-list-item>
-              <v-list-item @click="changeLang('jp')">
-                <v-list-item-title>{{ $t('button.japanese') }}</v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-menu>
-        </div>
+        <LanguageSwitcher />
       </v-card-title>
       
       <v-card-subtitle class="text-center pb-4">
@@ -92,8 +68,9 @@
 import { ref, watchEffect, computed, nextTick } from 'vue'
 import QRCode from 'qrcode'
 import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 
-const { locale } = useI18n()
+const { t } = useI18n()
 
 // 假设域名为 yourdomain.com
 const baseDomain = window.location.origin
@@ -109,10 +86,6 @@ const createSession = () => {
 const indexUrl = computed(() => `${baseDomain}/#/?sessionId=${sessionId.value}`)
 const presenterUrl = computed(() => `${baseDomain}/#/presenter?sessionId=${sessionId.value}`)
 const displayUrl = computed(() => `${baseDomain}/#/display?sessionId=${sessionId.value}`)
-
-const changeLang = (lang) => {
-  locale.value = lang
-}
 
 watchEffect(async () => {
   if (sessionId.value) {
