@@ -46,10 +46,12 @@ watchEffect(() => {
 })
 
 const currentQuestion = computed(() => {
+  if (!questions.value) return null
   return questions.value.find(q => q.status === 'showing')
 })
 
 const pendingQuestions = computed(() => {
+  if (!questions.value) return []
   return questions.value.filter(q => q.status === 'pending')
 })
 
@@ -58,15 +60,23 @@ let intervalId = null
 
 async function loadQuestions() {
   try {
+    if (!sessionId.value) {
+      console.warn('No sessionId provided')
+      questions.value = []
+      return
+    }
+
     const response = await fetch(`${config.api.endpoint}/questions/${sessionId.value}`)
     if (!response.ok) {
       console.error('Failed to load questions:', response.status)
+      questions.value = []
       return
     }
     const data = await response.json()
-    questions.value = data
+    questions.value = data || []
   } catch (error) {
     console.error('Loading failed:', error)
+    questions.value = []
   }
 }
 
