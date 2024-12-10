@@ -27,6 +27,10 @@ export default {
       chinese: '中文',
       english: 'English',
       japanese: '日本語',
+      russian: 'Русский',
+      spanish: 'Español',
+      malay: 'Bahasa Melayu',
+      tamil: 'தமிழ்',
       start: 'Start',
       regenerate: 'Regenerate'
     },
