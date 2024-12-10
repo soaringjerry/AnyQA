@@ -21,6 +21,18 @@
         <v-list-item @click="changeLang('jp')">
           <v-list-item-title>{{ $t('button.japanese') }}</v-list-item-title>
         </v-list-item>
+        <v-list-item @click="changeLang('ru')">
+          <v-list-item-title>{{ $t('button.russian') }}</v-list-item-title>
+        </v-list-item>
+        <v-list-item @click="changeLang('es')">
+          <v-list-item-title>{{ $t('button.spanish') }}</v-list-item-title>
+        </v-list-item>
+        <v-list-item @click="changeLang('ms')">
+          <v-list-item-title>{{ $t('button.malay') }}</v-list-item-title>
+        </v-list-item>
+        <v-list-item @click="changeLang('ta')">
+          <v-list-item-title>{{ $t('button.tamil') }}</v-list-item-title>
+        </v-list-item>
       </v-list>
     </v-menu>
   </div>
