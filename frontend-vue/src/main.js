@@ -11,6 +11,8 @@ import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
+// ... 其他导入
+import '@mdi/font/css/materialdesignicons.css'
 
 // 创建Vuetify实例
 const vuetify = createVuetify({

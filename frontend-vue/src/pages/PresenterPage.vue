@@ -1,7 +1,32 @@
 <template>
   <div class="container">
     <div class="header">
-      <h1>演讲者控制台（点击问题查看详情页）</h1>
+      <h1>{{ $t('presenter.title') }}</h1>
+      <div class="language-switcher">
+        <v-menu>
+          <template v-slot:activator="{ props }">
+            <v-btn
+              v-bind="props"
+              color="primary"
+              class="lang-menu-btn"
+              icon
+            >
+              <v-icon>mdi-translate</v-icon>
+            </v-btn>
+          </template>
+          <v-list>
+            <v-list-item @click="changeLang('zh')">
+              <v-list-item-title>{{ $t('button.chinese') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="changeLang('en')">
+              <v-list-item-title>{{ $t('button.english') }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="changeLang('jp')">
+              <v-list-item-title>{{ $t('button.japanese') }}</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-menu>
+      </div>
     </div>
     <div id="questionList">
       <div 
@@ -13,8 +38,12 @@
         <div class="content">{{ q.content }}</div>
         <div class="meta">
           <span class="status-badge">{{ q.status }}</span>
-          <button class="btn btn-secondary" @click.stop="markAsFinished(q.id)">标记完成</button>
-          <button class="btn btn-danger" @click.stop="deleteQuestion(q.id)">删除</button>
+          <button class="btn btn-secondary" @click.stop="markAsFinished(q.id)">
+            {{ $t('presenter.markFinished') }}
+          </button>
+          <button class="btn btn-danger" @click.stop="deleteQuestion(q.id)">
+            {{ $t('presenter.delete') }}
+          </button>
         </div>
       </div>
     </div>
@@ -22,11 +51,11 @@
     <div v-if="showModal" class="modal" @click.self="hideModal">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>问题详情</h2>
+          <h2>{{ $t('presenter.questionDetail') }}</h2>
         </div>
         <div class="modal-body">
           <div class="question-section">
-            <div class="section-title">问题内容</div>
+            <div class="section-title">{{ $t('presenter.questionContent') }}</div>
             <div 
               id="modalQuestionContent" 
               class="markdown-content" 
@@ -34,7 +63,7 @@
             ></div>
           </div>
           <div class="question-section">
-            <div class="section-title">AI 建议回复</div>
+            <div class="section-title">{{ $t('presenter.aiSuggestion') }}</div>
             <div 
               id="modalAiSuggestion" 
               class="markdown-content" 
@@ -43,8 +72,12 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn btn-primary" @click="showQuestionOnDisplay">显示问题</button>
-          <button class="btn btn-secondary" @click="hideModal">关闭</button>
+          <button class="btn btn-primary" @click="showQuestionOnDisplay">
+            {{ $t('presenter.show') }}
+          </button>
+          <button class="btn btn-secondary" @click="hideModal">
+            {{ $t('presenter.close') }}
+          </button>
         </div>
       </div>
     </div>
@@ -53,9 +86,12 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import config from '../config/index.js'
 import { marked } from 'marked'
 import { useRoute } from 'vue-router'
+
+const { t, locale } = useI18n()
 
 const questions = ref([])  
 const showModal = ref(false)
@@ -97,7 +133,7 @@ async function loadQuestions() {
 }
 
 async function deleteQuestion(id) {
-  if (!confirm('确定要删除这个问题吗？')) return
+  if (!confirm(t('presenter.confirmDelete'))) return
   try {
     await fetch(`${config.api.endpoint}/question/${id}`, {
       method: 'DELETE'
@@ -141,6 +177,10 @@ async function showQuestionOnDisplay() {
   }
 }
 
+const changeLang = (lang) => {
+  locale.value = lang
+}
+
 onMounted(() => {
   marked.setOptions({
     breaks: true,
@@ -181,6 +221,10 @@ body {
 }
 
 .header {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     background: #fff;
     padding: 20px;
     border-radius: 8px;
@@ -338,5 +382,9 @@ body {
     font-weight: 600;
     margin-bottom: 10px;
     color: #495057;
+}
+
+.language-switcher {
+    margin-left: 20px;
 }
 </style>

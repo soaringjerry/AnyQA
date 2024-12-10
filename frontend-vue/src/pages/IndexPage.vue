@@ -22,9 +22,31 @@
           </h1>
           <!-- 添加语言切换按钮容器 -->
           <div class="language-switcher">
-            <button @click="changeLang('zh')" class="lang-btn">{{ $t('button.chinese') }}</button>
-            <button @click="changeLang('en')" class="lang-btn">{{ $t('button.english') }}</button>
+            <v-menu>
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  color="primary"
+                  class="lang-menu-btn"
+                  icon
+                >
+                  <v-icon>mdi-translate</v-icon>
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item @click="changeLang('zh')">
+                  <v-list-item-title>{{ $t('button.chinese') }}</v-list-item-title>
+                </v-list-item>
+                <v-list-item @click="changeLang('en')">
+                  <v-list-item-title>{{ $t('button.english') }}</v-list-item-title>
+                </v-list-item>
+                <v-list-item @click="changeLang('jp')">
+                  <v-list-item-title>{{ $t('button.japanese') }}</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-menu>
           </div>
+
           <!-- 如果配置加载出现错误 -->
           <div v-if="configError" class="status error animate__animated animate__fadeInUp">
              {{ $t('message.configError') }}

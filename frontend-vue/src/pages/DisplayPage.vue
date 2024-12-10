@@ -4,14 +4,39 @@
     <div class="cyber-line"></div>
     <div class="container">
       <header class="header">
-        <h1>Question Display</h1>
+        <h1>{{ $t('display.title') }}</h1>
+        <div class="language-switcher">
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn
+                v-bind="props"
+                color="primary"
+                class="lang-menu-btn"
+                icon
+              >
+                <v-icon>mdi-translate</v-icon>
+              </v-btn>
+            </template>
+            <v-list>
+              <v-list-item @click="changeLang('zh')">
+                <v-list-item-title>{{ $t('button.chinese') }}</v-list-item-title>
+              </v-list-item>
+              <v-list-item @click="changeLang('en')">
+                <v-list-item-title>{{ $t('button.english') }}</v-list-item-title>
+              </v-list-item>
+              <v-list-item @click="changeLang('jp')">
+                <v-list-item-title>{{ $t('button.japanese') }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+        </div>
       </header>
       
       <div 
         class="current-question" 
         :class="{ loading: !currentQuestion }"
       >
-        {{ currentQuestion ? currentQuestion.content : 'Waiting...' }}
+        {{ currentQuestion ? currentQuestion.content : $t('display.waiting') }}
       </div>
 
       <div class="question-list">
@@ -29,7 +54,10 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watchEffect } from 'vue'
+import { useI18n } from 'vue-i18n'
 import config from '../config/index.js'
+
+const { t, locale } = useI18n()
 
 const questions = ref([])
 const sessionId = ref('')
@@ -107,6 +135,11 @@ onUnmounted(() => {
   document.body.style.overflow = ''
   document.documentElement.style.overflow = ''
 })
+
+// 添加语言切换函数
+const changeLang = (lang) => {
+  locale.value = lang
+}
 </script>
 
 <style>
@@ -181,6 +214,10 @@ html, body {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   animation: slideInDown 0.5s ease-out;
   flex-shrink: 0;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .header h1 {
@@ -355,5 +392,18 @@ html, body {
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+.language-switcher {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lang-menu-btn {
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
 }
 </style>
