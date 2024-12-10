@@ -20,32 +20,7 @@
           <h1 class="text-center animate__animated animate__bounceIn">
              {{ $t('nav.Questionshere') }}
           </h1>
-          <!-- 添加语言切换按钮容器 -->
-          <div class="language-switcher">
-            <v-menu>
-              <template v-slot:activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  color="primary"
-                  class="lang-menu-btn"
-                  icon
-                >
-                  <v-icon>mdi-translate</v-icon>
-                </v-btn>
-              </template>
-              <v-list>
-                <v-list-item @click="changeLang('zh')">
-                  <v-list-item-title>{{ $t('button.chinese') }}</v-list-item-title>
-                </v-list-item>
-                <v-list-item @click="changeLang('en')">
-                  <v-list-item-title>{{ $t('button.english') }}</v-list-item-title>
-                </v-list-item>
-                <v-list-item @click="changeLang('jp')">
-                  <v-list-item-title>{{ $t('button.japanese') }}</v-list-item-title>
-                </v-list-item>
-              </v-list>
-            </v-menu>
-          </div>
+          <LanguageSwitcher />
 
           <!-- 如果配置加载出现错误 -->
           <div v-if="configError" class="status error animate__animated animate__fadeInUp">
@@ -113,6 +88,8 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import jsyaml from 'js-yaml'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 
 const question = ref('')
 const statusMessage = ref('')
@@ -129,6 +106,7 @@ const configError = ref(null)
 const sessionId = ref(null)
 
 const route = useRoute()
+const { t } = useI18n()
 
 // 修改加载配置函数
 async function loadConfig() {
@@ -249,14 +227,6 @@ onBeforeUnmount(() => {
     clearInterval(sakuraInterval)
   }
 })
-
-import { useI18n } from 'vue-i18n'
-
-const { locale, t } = useI18n()
-
-function changeLang(lang) {
-  locale.value = lang
-}
 </script>
 
 <style scoped>
