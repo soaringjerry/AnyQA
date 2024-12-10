@@ -86,14 +86,9 @@ func handleQuestion(c *gin.Context) {
 		return
 	}
 
-	aiResponse, err := getAIResponse(question.Content)
-	if err != nil {
-		fmt.Printf("AI响应错误: %v\n", err)
-		aiResponse = ""
-	}
-	fmt.Printf("AI回复: %s\n", aiResponse)
+	// 首先插入问题内容到数据库，AI回答先留空
 	result, err := db.Exec(`INSERT INTO questions (session_id, content, ai_suggestion) VALUES (?, ?, ?)`,
-		question.SessionID, question.Content, aiResponse)
+		question.SessionID, question.Content, "")
 	if err != nil {
 		fmt.Printf("SQL执行错误: %v\n", err)
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -102,7 +97,24 @@ func handleQuestion(c *gin.Context) {
 
 	id, _ := result.LastInsertId()
 	fmt.Printf("插入成功，ID: %d\n", id)
-	c.JSON(200, gin.H{"status": "success"})
+
+	// 立即返回给用户成功响应，不阻塞用户请求
+	c.JSON(200, gin.H{"status": "success", "questionId": id})
+
+	// 异步处理AI回复逻辑
+	go func(questionID int64, content string) {
+		aiResponse, err := getAIResponse(content)
+		if err != nil {
+			fmt.Printf("AI响应错误: %v\n", err)
+			aiResponse = ""
+		}
+		fmt.Printf("AI回复: %s\n", aiResponse)
+
+		// 更新数据库记录的AI回复字段
+		if _, err := db.Exec(`UPDATE questions SET ai_suggestion = ? WHERE id = ?`, aiResponse, questionID); err != nil {
+			fmt.Printf("更新数据库错误: %v\n", err)
+		}
+	}(id, question.Content)
 }
 
 func getQuestions(c *gin.Context) {
