@@ -3,6 +3,7 @@ config.go
 
 # 不忽略整个目录，而是忽略其中所有非example的文件
 backend/config/*
+backend/uploads/*
 frontend/config/*
 frontend-vue/src/config/*
 backend/backend.exe
