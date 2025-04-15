@@ -49,7 +49,9 @@
         <small>{{ $t('presenter.kbPromptHint') }}</small>
       </div>
       <div class="prompt-actions">
-        <button class="btn btn-primary" @click="handleUpdatePrompts" :disabled="loadingPrompts">{{ $t('presenter.savePromptsButton') }}</button>
+         <button class="btn btn-primary" @click="handleUpdatePrompts" :disabled="savingPrompts || loadingPrompts">
+            {{ savingPrompts ? $t('presenter.savingPrompts') : $t('presenter.savePromptsButton') }}
+        </button>
         <span id="promptStatus" :class="promptStatusClass">{{ promptStatus }}</span>
       </div>
     </div>
@@ -123,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue' // 导入 watch
 import { useI18n } from 'vue-i18n'
 import config from '../config/index.js'
 import { marked } from 'marked'
@@ -137,7 +139,7 @@ const showModal = ref(false)
 const currentQuestionId = ref(null)
 const currentQuestionContent = ref('')
 const currentQuestionAiSuggestion = ref('')
-const currentQuestionKbSuggestion = ref('') // 新增：用于存储知识库建议
+const currentQuestionKbSuggestion = ref('')
 const route = useRoute()
 const sessionId = computed(() => route.query.sessionId)
 
@@ -153,8 +155,8 @@ const genericPrompt = ref('')
 const kbPrompt = ref('')
 const promptStatus = ref('')
 const promptStatusClass = ref('')
-const loadingPrompts = ref(false) // 用于加载状态
-const savingPrompts = ref(false) // 用于保存状态
+const loadingPrompts = ref(false)
+const savingPrompts = ref(false)
 
 let intervalId = null
 
@@ -162,7 +164,7 @@ function openModal(q) {
   currentQuestionId.value = q.id
   currentQuestionContent.value = q.content || ''
   currentQuestionAiSuggestion.value = q.ai_suggestion || t('presenter.noAiSuggestion')
-  currentQuestionKbSuggestion.value = q.kb_suggestion || '' // 获取知识库建议
+  currentQuestionKbSuggestion.value = q.kb_suggestion || ''
   showModal.value = true
 }
 
@@ -178,8 +180,7 @@ const currentKbSuggestionMarkdown = computed(() => marked.parse(currentQuestionK
 async function loadQuestions() {
   try {
     if (!sessionId.value) {
-      // console.warn('Session ID not available yet for loading questions.');
-      return; // 等待 Session ID
+      return;
     }
     const response = await fetch(`${config.api.endpoint}/questions/${sessionId.value}`)
     if (!response.ok) throw new Error('加载问题列表失败')
@@ -235,23 +236,28 @@ async function showQuestionOnDisplay() {
   }
 }
 
+// 封装加载初始数据的函数
+function loadInitialData() {
+    if (sessionId.value) {
+        console.log("Session ID found, loading initial data:", sessionId.value);
+        loadQuestions();
+        loadUploadedDocuments();
+        loadSessionPrompts();
+        if (!intervalId) { // 避免重复设置 interval
+            intervalId = setInterval(loadQuestions, 5000);
+        }
+    } else {
+        console.warn("Session ID not available yet.");
+    }
+}
+
 onMounted(() => {
   marked.setOptions({
     breaks: true,
     gfm: true,
     headerIds: false
   })
-
-  // 确保 sessionId 有效后再加载数据
-  if (sessionId.value) {
-      loadQuestions()
-      loadUploadedDocuments()
-      loadSessionPrompts()
-      intervalId = setInterval(loadQuestions, 5000)
-  } else {
-      console.warn("Session ID not found on mount, waiting for route query.")
-      // 可以考虑使用 watch 来监听 sessionId 的变化
-  }
+  loadInitialData(); // 尝试加载初始数据
 })
 
 onUnmounted(() => {
@@ -261,18 +267,35 @@ onUnmounted(() => {
   }
 })
 
+// 监听 sessionId 的变化，以便在路由参数可用时加载数据
+watch(sessionId, (newSessionId, oldSessionId) => {
+    console.log("Session ID changed:", oldSessionId, "->", newSessionId);
+    if (newSessionId) {
+        loadInitialData();
+    } else {
+        // Session ID 丢失，可能需要清理状态
+        questions.value = [];
+        uploadedDocuments.value = [];
+        genericPrompt.value = '';
+        kbPrompt.value = '';
+        if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+        }
+    }
+});
+
+
 // --- 文档管理方法 ---
 
 // 格式化日期时间
 function formatDateTime(dateTimeString) {
   if (!dateTimeString) return '';
   try {
-    // 尝试解析可能为 UTC 的时间字符串
     const date = new Date(dateTimeString);
-    if (isNaN(date.getTime())) { // 无效日期
-        return dateTimeString; // 返回原始字符串
+    if (isNaN(date.getTime())) {
+        return dateTimeString;
     }
-    // 如果需要，可以指定时区，例如 'zh-CN', { timeZone: 'Asia/Shanghai' }
     return date.toLocaleString();
   } catch (e) {
     console.error("Error formatting date:", e);
@@ -312,8 +335,8 @@ async function handleDocumentUpload() {
     if (response.ok && result.status === 'success') {
       uploadStatus.value = t('presenter.uploadSuccess', { title: result.document.title });
       uploadStatusClass.value = 'status-success';
-      fileInputRef.value.value = ''; // 清空文件选择
-      loadUploadedDocuments(); // 刷新列表
+      fileInputRef.value.value = '';
+      loadUploadedDocuments();
     } else {
       throw new Error(result.error || t('presenter.uploadFailed'));
     }
@@ -341,7 +364,7 @@ async function loadUploadedDocuments() {
     uploadedDocuments.value = data || [];
   } catch (error) {
     console.error('加载文档列表错误:', error);
-    uploadedDocuments.value = []; // 出错时清空列表
+    uploadedDocuments.value = [];
     uploadStatus.value = t('presenter.loadDocsError', { message: error.message });
     uploadStatusClass.value = 'status-error';
   } finally {
@@ -365,7 +388,7 @@ async function handleDeleteDocument(docId, docTitle) {
     if (response.ok && result.status === 'success') {
       uploadStatus.value = t('presenter.deleteDocSuccess', { title: docTitle });
       uploadStatusClass.value = 'status-success';
-      loadUploadedDocuments(); // 刷新列表
+      loadUploadedDocuments();
     } else {
       throw new Error(result.error || t('presenter.deleteDocFailed'));
     }
@@ -377,7 +400,7 @@ async function handleDeleteDocument(docId, docTitle) {
 }
 // --- 文档管理方法结束 ---
 
-// --- 新增：提示词管理方法 ---
+// --- 提示词管理方法 ---
 
 // 加载会话提示词
 async function loadSessionPrompts() {
@@ -394,10 +417,9 @@ async function loadSessionPrompts() {
       throw new Error(`获取提示词失败: ${response.statusText}`);
     }
     const data = await response.json();
-    // 后端返回的是指针，可能为 null，需要处理
-    genericPrompt.value = data.genericPrompt || ''; // 如果为 null 则设为空字符串
-    kbPrompt.value = data.kbPrompt || '';       // 如果为 null 则设为空字符串
-    promptStatus.value = ''; // 加载成功，清除状态
+    genericPrompt.value = data.genericPrompt || '';
+    kbPrompt.value = data.kbPrompt || '';
+    promptStatus.value = '';
   } catch (error) {
     console.error('加载提示词错误:', error);
     promptStatus.value = t('presenter.loadPromptsError', { message: error.message });
@@ -410,7 +432,7 @@ async function loadSessionPrompts() {
 // 处理更新提示词
 async function handleUpdatePrompts() {
   if (!sessionId.value) {
-    promptStatus.value = t('presenter.noSessionIdError');
+    promptStatus.value = t('presenter.noSessionIdError'); // 复用错误消息
     promptStatusClass.value = 'status-error';
     return;
   }
@@ -422,7 +444,6 @@ async function handleUpdatePrompts() {
     const response = await fetch(`${config.api.endpoint}/prompts/${sessionId.value}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // 发送 null 如果文本框为空，让后端知道是清空操作
       body: JSON.stringify({
           genericPrompt: genericPrompt.value.trim() === '' ? null : genericPrompt.value,
           kbPrompt: kbPrompt.value.trim() === '' ? null : kbPrompt.value
@@ -455,20 +476,32 @@ async function handleUpdatePrompts() {
     padding: 0;
 }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    line-height: 1.6;
-    color: #333;
-    background: #f5f5f5;
-    padding: 20px;
+/* 使 body 和 html 占满高度，为 flex 容器提供基础 */
+/* 注意：这些样式通常在全局 CSS (如 src/style.css 或 App.vue) 中设置更合适 */
+/* 这里为了演示效果暂时放在 scoped style 中，但可能需要调整 */
+:global(html, body) {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* 防止 body 出现滚动条 */
 }
+:global(#app) { /* 假设 Vue 应用挂载在 #app */
+  height: 100%;
+}
+
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
+    display: flex; /* 使用 Flexbox 布局 */
+    flex-direction: column; /* 垂直排列 */
+    height: 100vh; /* 让容器占满视口高度 */
+    padding: 20px; /* 保持内边距 */
+    box-sizing: border-box; /* 确保 padding 不会增加总高度 */
 }
 
 .header {
+    flex-shrink: 0; /* 防止 header 被压缩 */
     position: relative;
     display: flex;
     justify-content: space-between;
@@ -662,6 +695,7 @@ body {
   gap: 20px; /* 左右间距 */
   margin-bottom: 20px;
   flex-wrap: wrap; /* 在小屏幕上换行 */
+  flex-shrink: 0; /* 防止此区域被压缩 */
 }
 
 .document-upload-section,
@@ -766,6 +800,7 @@ body {
   border-radius: 8px;
   margin-bottom: 20px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex-shrink: 0; /* 防止此区域被压缩 */
 }
 .prompt-editing-section h2 {
   margin-top: 0;
@@ -808,6 +843,21 @@ body {
 }
 #promptStatus {
     font-weight: 500;
+    min-height: 1.2em; /* 避免状态消失时布局跳动 */
 }
+
+/* 问题列表样式调整 */
+#questionList {
+    flex-grow: 1; /* 让问题列表填充剩余空间 */
+    overflow-y: auto; /* 当内容超出时显示滚动条 */
+    /* margin-top: 20px; */ /* 移除或调整，因为上面有提示词区域 */
+    padding-right: 10px; /* 为滚动条留出空间 */
+    min-height: 0; /* 防止 flex item 无限增长 */
+    background: #fff; /* 给问题列表区域加个背景 */
+    padding: 10px 20px; /* 增加内边距 */
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 
 </style>
