@@ -11,7 +11,7 @@
       <div class="document-upload-section">
         <h2>{{ $t('presenter.uploadTitle') }}</h2>
         <form @submit.prevent="handleDocumentUpload">
-          <input type="file" ref="fileInputRef" accept=".pdf,.docx,.txt" required>
+          <input type="file" ref="fileInputRef" accept=".pdf,.docx,.txt,.md,.html,.htm,.csv,.json,.xlsx,.xls" required>
           <button type="submit" class="btn btn-primary">{{ $t('presenter.uploadButton') }}</button>
         </form>
         <div id="uploadStatus" :class="uploadStatusClass">{{ uploadStatus }}</div>
@@ -480,13 +480,16 @@ async function handleUpdatePrompts() {
 /* 注意：这些样式通常在全局 CSS (如 src/style.css 或 App.vue) 中设置更合适 */
 /* 这里为了演示效果暂时放在 scoped style 中，但可能需要调整 */
 :global(html, body) {
-  height: 100%;
+  height: auto; /* 改为 auto，允许根据内容伸展 */
   margin: 0;
   padding: 0;
-  overflow: hidden; /* 防止 body 出现滚动条 */
+  overflow-y: auto; /* 明确设置为 auto，允许滚动 */
+  background-color: #ffffff; /* 纯白色背景 */
 }
 :global(#app) { /* 假设 Vue 应用挂载在 #app */
-  height: 100%;
+  height: auto; /* 改为 auto，允许根据内容伸展 */
+  overflow-y: auto; /* 明确设置为 auto，允许滚动 */
+  background-color: #ffffff; /* 纯白色背景 */
 }
 
 
@@ -495,9 +498,13 @@ async function handleUpdatePrompts() {
     margin: 0 auto;
     display: flex; /* 使用 Flexbox 布局 */
     flex-direction: column; /* 垂直排列 */
-    height: 100vh; /* 让容器占满视口高度 */
-    padding: 20px; /* 保持内边距 */
+    min-height: 100%; /* 最小高度为100%，但可以根据内容伸展 */
+    height: auto; /* 明确设置为 auto，允许根据内容伸展 */
+    padding: 30px; /* 增加内边距 */
+    padding-bottom: 50px; /* 增加底部内边距 */
     box-sizing: border-box; /* 确保 padding 不会增加总高度 */
+    overflow-y: visible; /* 允许内容溢出并显示滚动条 */
+    background-color: #ffffff; /* 纯白色背景 */
 }
 
 .header {
@@ -506,46 +513,52 @@ async function handleUpdatePrompts() {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #fff;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 16px;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.02);
 }
 
 .question-card {
-    background: #fff;
-    padding: 20px;
-    margin: 15px 0;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
+    background: #ffffff;
+    padding: 24px;
+    margin: 20px 0;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+    transition: transform 0.3s, box-shadow 0.3s;
     cursor: pointer;
+    border: 1px solid rgba(0,0,0,0.02);
 }
 
 .question-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.06);
+    border-color: rgba(0,0,0,0.03);
 }
 
 .content {
-    font-size: 1.1em;
-    margin-bottom: 15px;
+    font-size: 1.15em;
+    margin-bottom: 18px;
+    color: #333333;
+    line-height: 1.5;
 }
 
 .meta {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 15px;
     margin-bottom: 15px;
 }
 
 .status-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.9em;
-    font-weight: 500;
-    background: #e9ecef;
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-size: 0.85em;
+    font-weight: 600;
+    background: #f0f5ff;
+    color: #4a6cf7;
 }
 
 .ai-suggestion {
@@ -555,14 +568,14 @@ async function handleUpdatePrompts() {
     border-left: 4px solid #6c757d;
     margin-top: 10px;
 }
-
 .btn {
-    padding: 8px 16px;
+    padding: 10px 20px;
     border: none;
-    border-radius: 4px;
+    border-radius: 30px;
     cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.2s;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    font-size: 0.95em;
 }
 .btn:disabled {
     opacity: 0.6;
@@ -570,24 +583,29 @@ async function handleUpdatePrompts() {
 }
 
 
+
 .btn-primary {
-    background: #007bff;
+    background: linear-gradient(135deg, #4a6cf7, #3b5fe2);
     color: white;
+    box-shadow: 0 5px 15px rgba(74, 108, 247, 0.2);
 }
 
 .btn-secondary {
-    background: #6c757d;
+    background: linear-gradient(135deg, #6c757d, #5a6268);
     color: white;
+    box-shadow: 0 5px 15px rgba(108, 117, 125, 0.2);
 }
 
 .btn-danger {
-    background: #dc3545;
+    background: linear-gradient(135deg, #dc3545, #c82333);
     color: white;
+    box-shadow: 0 5px 15px rgba(220, 53, 69, 0.2);
+}
+.btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
-.btn:hover:not(:disabled) {
-    opacity: 0.9;
-}
 
 
 .modal {
@@ -692,8 +710,8 @@ async function handleUpdatePrompts() {
 /* 文档管理区域样式 */
 .document-management-section {
   display: flex;
-  gap: 20px; /* 左右间距 */
-  margin-bottom: 20px;
+  gap: 30px; /* 增加左右间距 */
+  margin-bottom: 30px;
   flex-wrap: wrap; /* 在小屏幕上换行 */
   flex-shrink: 0; /* 防止此区域被压缩 */
 }
@@ -701,11 +719,13 @@ async function handleUpdatePrompts() {
 .document-upload-section,
 .document-list-section {
   flex: 1; /* 让两部分平分宽度 */
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.03);
   min-width: 300px; /* 保证最小宽度 */
+  border: 1px solid rgba(0,0,0,0.02);
+  margin: 0 10px; /* 添加左右间距 */
 }
 
 .document-upload-section h2,
@@ -795,12 +815,13 @@ async function handleUpdatePrompts() {
 
 /* 提示词编辑区域样式 */
 .prompt-editing-section {
-  background: #fff;
-  padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 16px;
+  margin-bottom: 30px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.03);
   flex-shrink: 0; /* 防止此区域被压缩 */
+  border: 1px solid rgba(0,0,0,0.02);
 }
 .prompt-editing-section h2 {
   margin-top: 0;
@@ -849,14 +870,17 @@ async function handleUpdatePrompts() {
 /* 问题列表样式调整 */
 #questionList {
     flex-grow: 1; /* 让问题列表填充剩余空间 */
-    overflow-y: auto; /* 当内容超出时显示滚动条 */
+    overflow-y: visible; /* 改为 visible，让内容自然溢出 */
     /* margin-top: 20px; */ /* 移除或调整，因为上面有提示词区域 */
-    padding-right: 10px; /* 为滚动条留出空间 */
-    min-height: 0; /* 防止 flex item 无限增长 */
-    background: #fff; /* 给问题列表区域加个背景 */
-    padding: 10px 20px; /* 增加内边距 */
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding-right: 15px; /* 为滚动条留出空间 */
+    min-height: 200px; /* 设置一个合理的最小高度 */
+    background: #ffffff; /* 给问题列表区域加个背景 */
+    padding: 20px 25px; /* 增加内边距 */
+    padding-bottom: 30px; /* 增加底部内边距 */
+    margin-bottom: 30px; /* 增加底部外边距 */
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+    border: 1px solid rgba(0,0,0,0.02);
 }
 
 
