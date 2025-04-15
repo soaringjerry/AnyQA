@@ -1,13 +1,16 @@
 package main
 
 import (
-	"bytes"
+	// "bytes" // 移除未使用的导入
 	"database/sql"
-	"encoding/json"
+	// "encoding/json" // 移除未使用的导入
 	"fmt"
 	"net/http"
 
-	"github.com/soaringjerry/AnyQA/backend/config" // 替换为实际项目中的导入路径
+	"github.com/soaringjerry/AnyQA/backend/config"   // 替换为实际项目中的导入路径
+	"github.com/soaringjerry/AnyQA/backend/handlers" // 导入 handlers 包
+
+	// "github.com/soaringjerry/AnyQA/backend/services" // 移除未使用的导入
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
@@ -57,11 +60,12 @@ func main() {
 	})
 
 	// API routes
-	r.POST("/api/question", handleQuestion)
-	r.GET("/api/questions/:sessionId", getQuestions)
-	r.GET("/api/ws", handleWebSocket)
-	r.POST("/api/question/status", updateQuestionStatus)
-	r.DELETE("/api/question/:id", func(c *gin.Context) {
+	// 使用 handlers 包中的函数，并传递 db 和 cfg
+	r.POST("/api/question", func(c *gin.Context) { handlers.HandleQuestion(c, db, cfg) })
+	r.GET("/api/questions/:sessionId", func(c *gin.Context) { handlers.GetQuestions(c, db) })
+	r.GET("/api/ws", handleWebSocket) // WebSocket 暂时保留在 main.go
+	r.POST("/api/question/status", func(c *gin.Context) { handlers.UpdateQuestionStatus(c, db) })
+	r.DELETE("/api/question/:id", func(c *gin.Context) { // 删除问题的逻辑比较简单，暂时保留匿名函数
 		id := c.Param("id")
 		_, err := db.Exec("DELETE FROM questions WHERE id = ?", id)
 		if err != nil {
@@ -71,192 +75,47 @@ func main() {
 		}
 		c.JSON(200, gin.H{})
 	})
+	// 新增：文档上传路由
+	r.POST("/api/documents", func(c *gin.Context) { handlers.HandleDocumentUpload(c, db) })
+	// 新增：获取文档列表路由
+	r.GET("/api/documents/:sessionId", func(c *gin.Context) { handlers.GetSessionDocuments(c, db) })
+	// 新增：删除文档路由
+	r.DELETE("/api/document/:id", func(c *gin.Context) { handlers.DeleteDocument(c, db) })
+	// 新增：获取会话提示词路由
+	r.GET("/api/prompts/:sessionId", func(c *gin.Context) { handlers.GetSessionPrompts(c, db, cfg) })
+	// 新增：更新会话提示词路由
+	r.POST("/api/prompts/:sessionId", func(c *gin.Context) { handlers.UpdateSessionPrompts(c, db) })
 
 	r.Run(cfg.ServerPort)
 }
 
-func handleQuestion(c *gin.Context) {
-	var question struct {
-		SessionID string `json:"sessionId"`
-		Content   string `json:"content"`
-	}
-	if err := c.BindJSON(&question); err != nil {
-		fmt.Printf("JSON绑定错误: %v\n", err)
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 首先插入问题内容到数据库，AI回答先留空
-	result, err := db.Exec(`INSERT INTO questions (session_id, content, ai_suggestion) VALUES (?, ?, ?)`,
-		question.SessionID, question.Content, "")
-	if err != nil {
-		fmt.Printf("SQL执行错误: %v\n", err)
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
-
-	id, _ := result.LastInsertId()
-	fmt.Printf("插入成功，ID: %d\n", id)
-
-	// 立即返回给用户成功响应，不阻塞用户请求
-	c.JSON(200, gin.H{"status": "success", "questionId": id})
-
-	// 异步处理AI回复逻辑
-	go func(questionID int64, content string) {
-		aiResponse, err := getAIResponse(content)
-		if err != nil {
-			fmt.Printf("AI响应错误: %v\n", err)
-			aiResponse = ""
-		}
-		fmt.Printf("AI回复: %s\n", aiResponse)
-
-		// 更新数据库记录的AI回复字段
-		if _, err := db.Exec(`UPDATE questions SET ai_suggestion = ? WHERE id = ?`, aiResponse, questionID); err != nil {
-			fmt.Printf("更新数据库错误: %v\n", err)
-		}
-	}(id, question.Content)
-}
-
-func getQuestions(c *gin.Context) {
-	sessionId := c.Param("sessionId")
-	rows, err := db.Query(`
-    SELECT id, content, status, ai_suggestion, created_at 
-    FROM questions 
-    WHERE session_id = ?
-    ORDER BY created_at DESC
-`, sessionId)
-	if err != nil {
-		fmt.Printf("查询错误: %v\n", err)
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	var questions []map[string]interface{}
-	for rows.Next() {
-		q := make(map[string]interface{})
-		var id int
-		var content, status, createdAt string
-		var aiSuggestion sql.NullString
-		if err := rows.Scan(&id, &content, &status, &aiSuggestion, &createdAt); err != nil {
-			fmt.Printf("Scan错误: %v\n", err)
-			c.JSON(500, gin.H{"error": err.Error()})
-			return
-		}
-		q["id"] = id
-		q["content"] = content
-		q["status"] = status
-		q["ai_suggestion"] = aiSuggestion.String
-		q["created_at"] = createdAt
-		questions = append(questions, q)
-	}
-
-	c.JSON(200, questions)
-}
-
-func updateQuestionStatus(c *gin.Context) {
-	var req struct {
-		ID     int    `json:"id"`
-		Status string `json:"status"`
-	}
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 如果设置showing状态，先把其他showing的改为finished
-	if req.Status == "showing" {
-		_, err := db.Exec("UPDATE questions SET status = 'finished' WHERE status = 'showing'")
-		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
-			return
-		}
-	}
-
-	_, err := db.Exec("UPDATE questions SET status = ? WHERE id = ?", req.Status, req.ID)
-	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(200, gin.H{"status": "success"})
-}
-
+// WebSocket 处理逻辑 (暂时保留在 main.go)
 func handleWebSocket(c *gin.Context) {
 	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
+		fmt.Printf("WebSocket upgrade error: %v\n", err)
 		return
 	}
 	defer ws.Close()
 
+	fmt.Println("WebSocket client connected")
+	// TODO: 实现更复杂的 WebSocket 逻辑，例如广播消息等
 	for {
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
+			fmt.Printf("WebSocket read error: %v\n", err)
+			break // 连接关闭或出错
+		}
+		fmt.Printf("Received WebSocket message: %s\n", string(msg))
+		// 简单地将消息回显给客户端
+		if err := ws.WriteMessage(websocket.TextMessage, msg); err != nil {
+			fmt.Printf("WebSocket write error: %v\n", err)
 			break
 		}
-		ws.WriteMessage(websocket.TextMessage, msg)
 	}
+	fmt.Println("WebSocket client disconnected")
 }
 
-func getAIResponse(question string) (string, error) {
-	requestBody := struct {
-		Model    string        `json:"model"`
-		Messages []ChatMessage `json:"messages"`
-	}{
-		Model: cfg.OpenAIModel,
-		Messages: []ChatMessage{
-			{
-				Role:    "system",
-				Content: "You are a bilingual presentation assistant AI. Provide responses in markdown format to help Chinese speakers deliver English presentations. Always structure your response in two main sections: 1. Chinese Understanding: Provide core message, key terms (both Chinese and English), and key points for the speaker's understanding. 2. English Delivery: Give a quick answer, key speaking points, one clear example (marked as real or hypothetical), and useful phrases. Use headings (#), bold (**), and bullet points (*) in markdown format. Keep responses concise, use simple English, and clearly distinguish between real and hypothetical examples. Your goal is to help speakers understand the content in Chinese while preparing them to deliver confidently in English.",
-			},
-			{
-				Role:    "user",
-				Content: question,
-			},
-		},
-	}
-
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		return "", err
-	}
-
-	req, err := http.NewRequest("POST", cfg.OpenAIAPIUrl, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return "", err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+cfg.OpenAIAPIKey)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	var result OpenAIResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-
-	if len(result.Choices) > 0 {
-		return result.Choices[0].Message.Content, nil
-	}
-
-	return "", fmt.Errorf("no response from AI")
-}
-
-type ChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-type OpenAIResponse struct {
-	Choices []struct {
-		Message struct {
-			Content string `json:"content"`
-		} `json:"message"`
-	} `json:"choices"`
-}
+// 注意：getAIResponse 函数现在应该在 services/openai_service.go 中实现或调用
+// 注意：ChatMessage 和 OpenAIResponse 结构体也应该移到相应的位置（例如 models 或 services）
+// 注意：min 函数如果只在 handlers/question.go 中使用，可以移到那里或保持为本地函数

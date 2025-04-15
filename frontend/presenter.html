@@ -183,6 +183,77 @@
             margin-bottom: 10px;
             color: #495057;
         }
+
+        /* 新增：文档上传区域样式 */
+        .document-upload-section {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .document-upload-section h2 {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            color: #333;
+        }
+        #uploadForm input[type="file"] {
+            margin-right: 10px;
+        }
+        #uploadStatus {
+            margin-top: 10px;
+            font-weight: 500;
+        }
+        .status-success {
+            color: #28a745;
+        }
+        .status-error {
+            color: #dc3545;
+        }
+
+        /* 新增：文档列表样式 */
+        .document-list-section {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .document-list-section h2 {
+            margin-bottom: 15px;
+        }
+        #documentList ul {
+            list-style: none;
+            padding: 0;
+        }
+        #documentList li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        #documentList li:last-child {
+            border-bottom: none;
+        }
+        #documentList .doc-title {
+            flex-grow: 1;
+            margin-right: 15px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #documentList .doc-meta {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-right: 15px;
+            min-width: 100px; /* Ensure consistent alignment */
+            text-align: right;
+        }
+        #documentList .btn-delete-doc {
+            padding: 5px 10px; /* Smaller delete button */
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
@@ -190,6 +261,26 @@
         <div class="header">
             <h1>演讲者控制台（点击问题查看详情页）</h1>
         </div>
+
+        <!-- 新增：文档上传区域 -->
+        <div class="document-upload-section">
+            <h2>上传知识库文档</h2>
+            <form id="uploadForm">
+                <input type="file" id="fileInput" accept=".pdf,.docx,.txt" required>
+                <button type="submit" class="btn btn-primary">上传文档</button>
+            </form>
+            <div id="uploadStatus"></div>
+        </div>
+
+        <!-- 新增：已上传文档列表区域 -->
+        <div class="document-list-section">
+            <h2>已上传文档</h2>
+            <div id="documentList">
+                <p>正在加载文档列表...</p>
+                <ul></ul>
+            </div>
+        </div>
+
         <div id="questionList"></div>
     </div>
 
@@ -207,6 +298,7 @@
                     <div class="section-title">AI 建议回复</div>
                     <div id="modalAiSuggestion" class="markdown-content"></div>
                 </div>
+                <!-- TODO: 在这里添加显示知识库回答的区域 -->
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" onclick="showQuestion()">显示问题</button>
@@ -223,14 +315,25 @@
         let modal = document.getElementById('modal');
 
         async function loadConfig() {
-            const response = await fetch('config/config.yaml');
-            const text = await response.text();
-            appConfig = jsyaml.load(text);
+            try {
+                const response = await fetch('config/config.yaml');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const text = await response.text();
+                appConfig = jsyaml.load(text);
+                console.log("Config loaded:", appConfig); // 调试信息
+            } catch (error) {
+                console.error("Failed to load config:", error);
+                // 可以在页面上显示错误信息
+                document.body.innerHTML = `<div style="color: red; padding: 20px;">错误：无法加载配置文件 config/config.yaml。请确保文件存在且格式正确。详细信息: ${error.message}</div>`;
+            }
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
             await loadConfig();
-            initializeApp();
+            // 只有成功加载配置后才初始化应用
+            if (appConfig && Object.keys(appConfig).length > 0) {
+                initializeApp();
+            }
         });
 
         function initializeApp() {
@@ -241,10 +344,24 @@
             });
 
             loadQuestions();
-            setInterval(loadQuestions, 5000);
+            setInterval(loadQuestions, 5000); // 定时刷新问题列表
+
+            // 添加上传表单事件监听
+            const uploadForm = document.getElementById('uploadForm');
+            if (uploadForm) { // 确保元素存在
+                uploadForm.addEventListener('submit', handleDocumentUpload);
+            } else {
+                console.error("Upload form not found!");
+            }
+
+            loadUploadedDocuments(); // 初始化时加载文档列表
         }
 
         async function loadQuestions() {
+             if (!appConfig || !appConfig.api || !appConfig.api.endpoint || !appConfig.session || !appConfig.session.id) {
+                console.error("Config not ready for loading questions.");
+                return; // 配置未就绪，不加载问题
+            }
             try {
                 const response = await fetch(`${appConfig.api.endpoint}/questions/${appConfig.session.id}`);
                 if (!response.ok) {
@@ -253,32 +370,35 @@
                 const data = await response.json();
                 displayQuestions(data);
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error loading questions:', error);
             }
         }
 
         function displayQuestions(data) {
             const container = document.getElementById('questionList');
+            if (!container) return; // 确保容器存在
             container.innerHTML = '';
 
             data.forEach(q => {
                 const div = document.createElement('div');
                 div.className = 'question-card';
                 div.innerHTML = `
-                    <div class="content">${q.content}</div>
+                    <div class="content">${q.content || '无内容'}</div>
                     <div class="meta">
-                        <span class="status-badge">${q.status}</span>
+                        <span class="status-badge">${q.status || '未知'}</span>
                         <button class="btn btn-secondary" onclick="event.stopPropagation(); markAsFinished(${q.id})">标记完成</button>
                         <button class="btn btn-danger" onclick="event.stopPropagation(); deleteQuestion(${q.id})">删除</button>
                     </div>
                 `;
-                div.onclick = () => showModal(q.id, q.content, q.ai_suggestion);
+                // 确保传递了所有需要的数据给 showModal
+                div.onclick = () => showModal(q.id, q.content, q.ai_suggestion, q.kb_suggestion); // 添加 kb_suggestion
                 container.appendChild(div);
             });
         }
 
         async function deleteQuestion(id) {
             if (!confirm('确定要删除这个问题吗？')) return;
+             if (!appConfig || !appConfig.api || !appConfig.api.endpoint) return;
             try {
                 await fetch(`${appConfig.api.endpoint}/question/${id}`, {
                     method: 'DELETE'
@@ -290,6 +410,7 @@
         }
 
         async function markAsFinished(id) {
+             if (!appConfig || !appConfig.api || !appConfig.api.endpoint) return;
             try {
                 await fetch(`${appConfig.api.endpoint}/question/status`, {
                     method: 'POST',
@@ -302,19 +423,29 @@
             }
         }
 
-        function showModal(id, content, aiSuggestion) {
+        // 更新 showModal 以接收并显示知识库建议
+        function showModal(id, content, aiSuggestion, kbSuggestion) {
             currentQuestionId = id;
-            document.getElementById('modalQuestionContent').innerHTML = marked.parse(content || '');
-            document.getElementById('modalAiSuggestion').innerHTML = marked.parse(aiSuggestion || '暂无AI建议');
-            modal.style.display = 'block';
+            const modalQuestionContent = document.getElementById('modalQuestionContent');
+            const modalAiSuggestion = document.getElementById('modalAiSuggestion');
+            // TODO: 获取用于显示知识库建议的元素
+            // const modalKbSuggestion = document.getElementById('modalKbSuggestion');
+
+            if (modalQuestionContent) modalQuestionContent.innerHTML = marked.parse(content || '');
+            if (modalAiSuggestion) modalAiSuggestion.innerHTML = marked.parse(aiSuggestion || '暂无AI建议');
+            // TODO: 显示知识库建议
+            // if (modalKbSuggestion) modalKbSuggestion.innerHTML = marked.parse(kbSuggestion || '暂无知识库建议');
+
+            if (modal) modal.style.display = 'block';
         }
 
         function hideModal() {
-            modal.style.display = 'none';
+            if (modal) modal.style.display = 'none';
         }
 
         async function showQuestion() {
             if (!currentQuestionId) return;
+             if (!appConfig || !appConfig.api || !appConfig.api.endpoint) return;
             try {
                 const response = await fetch(`${appConfig.api.endpoint}/question/status`, {
                     method: 'POST',
@@ -331,16 +462,173 @@
                     loadQuestions();
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error showing question:', error);
             }
         }
 
         // 点击模态框外部关闭
-        modal.onclick = function(event) {
-            if (event.target === modal) {
-                hideModal();
+        if (modal) {
+            modal.onclick = function(event) {
+                if (event.target === modal) {
+                    hideModal();
+                }
+            };
+        }
+
+        // 新增：处理文档上传的函数
+        async function handleDocumentUpload(event) {
+            event.preventDefault(); // 阻止表单默认提交
+
+            const fileInput = document.getElementById('fileInput');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const file = fileInput ? fileInput.files[0] : null;
+
+            if (!uploadStatus) {
+                console.error("Upload status element not found!");
+                return;
             }
-        };
+
+            if (!file) {
+                uploadStatus.textContent = '请选择要上传的文件。';
+                uploadStatus.className = 'status-error';
+                return;
+            }
+
+            if (!appConfig || !appConfig.session || !appConfig.session.id || !appConfig.api || !appConfig.api.endpoint) {
+                 uploadStatus.textContent = '配置未加载或缺少必要信息（会话ID/API端点），无法上传。';
+                 uploadStatus.className = 'status-error';
+                 console.error("Config missing for upload:", appConfig);
+                 return;
+            }
+
+            uploadStatus.textContent = '正在上传...';
+            uploadStatus.className = ''; // 清除之前的状态样式
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('sessionId', appConfig.session.id); // 添加 sessionId
+
+            try {
+                const response = await fetch(`${appConfig.api.endpoint}/documents`, {
+                    method: 'POST',
+                    body: formData,
+                    // 注意：使用 FormData 时，浏览器会自动设置 Content-Type 为 multipart/form-data
+                    // 不需要手动设置 headers['Content-Type']
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                    uploadStatus.textContent = `文档 "${result.document.title}" 上传成功！后台正在处理...`;
+                    uploadStatus.className = 'status-success';
+                    if (fileInput) fileInput.value = ''; // 清空文件选择框
+                    loadUploadedDocuments(); // 上传成功后刷新文档列表
+                } else {
+                    throw new Error(result.error || '上传失败，请检查文件或联系管理员。');
+                }
+            } catch (error) {
+                console.error('上传错误:', error);
+                uploadStatus.textContent = `上传失败: ${error.message}`;
+                uploadStatus.className = 'status-error';
+            }
+        }
+
+        // 新增：获取并显示已上传文档列表
+        async function loadUploadedDocuments() {
+            const docListContainer = document.getElementById('documentList');
+            const listElement = docListContainer ? docListContainer.querySelector('ul') : null;
+            const loadingMsg = docListContainer ? docListContainer.querySelector('p') : null;
+
+            if (!listElement || !loadingMsg) {
+                console.error("Document list container or elements not found.");
+                return;
+            }
+
+            if (!appConfig || !appConfig.api || !appConfig.api.endpoint || !appConfig.session || !appConfig.session.id) {
+                loadingMsg.textContent = '配置未加载或缺少会话ID，无法加载文档列表。';
+                loadingMsg.style.display = 'block';
+                listElement.innerHTML = ''; // 清空旧列表
+                return;
+            }
+
+            loadingMsg.textContent = '正在加载文档列表...';
+            loadingMsg.style.display = 'block';
+            listElement.innerHTML = ''; // 清空旧列表
+
+            try {
+                const response = await fetch(`${appConfig.api.endpoint}/documents/${appConfig.session.id}`);
+                if (!response.ok) {
+                    throw new Error(`获取文档列表失败: ${response.statusText}`);
+                }
+                const documents = await response.json();
+
+                if (documents && documents.length > 0) {
+                    loadingMsg.style.display = 'none'; // 隐藏加载信息
+                    documents.forEach(doc => {
+                        const li = document.createElement('li');
+                        const uploadDate = new Date(doc.uploadTime).toLocaleString();
+                        li.innerHTML = `
+                            <span class="doc-title" title="${doc.title}.${doc.fileType}">${doc.title}.${doc.fileType}</span>
+                            <span class="doc-meta">上传于: ${uploadDate}</span>
+                            <button class="btn btn-danger btn-delete-doc" onclick="handleDeleteDocument(${doc.id}, '${doc.title}.${doc.fileType}')">删除</button>
+                        `;
+                        listElement.appendChild(li);
+                    });
+                } else {
+                    loadingMsg.textContent = '当前会话没有已上传的文档。';
+                    loadingMsg.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('加载文档列表错误:', error);
+                loadingMsg.textContent = `加载文档列表失败: ${error.message}`;
+                loadingMsg.style.display = 'block';
+            }
+        }
+
+        // 新增：处理删除文档的函数
+        async function handleDeleteDocument(docId, docTitle) {
+            if (!confirm(`确定要删除文档 "${docTitle}" 吗？这将同时删除所有相关数据。`)) return;
+
+            if (!appConfig || !appConfig.api || !appConfig.api.endpoint) {
+                alert('配置未加载，无法删除文档。');
+                return;
+            }
+
+            const uploadStatus = document.getElementById('uploadStatus'); // 复用上传状态区域显示删除结果
+            if (uploadStatus) {
+                 uploadStatus.textContent = `正在删除文档 "${docTitle}"...`;
+                 uploadStatus.className = '';
+            }
+
+
+            try {
+                const response = await fetch(`${appConfig.api.endpoint}/document/${docId}`, {
+                    method: 'DELETE',
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.status === 'success') {
+                     if (uploadStatus) {
+                        uploadStatus.textContent = `文档 "${docTitle}" 删除成功！`;
+                        uploadStatus.className = 'status-success';
+                     }
+                    loadUploadedDocuments(); // 删除成功后刷新列表
+                } else {
+                    throw new Error(result.error || '删除失败。');
+                }
+            } catch (error) {
+                console.error('删除文档错误:', error);
+                 if (uploadStatus) {
+                    uploadStatus.textContent = `删除文档 "${docTitle}" 失败: ${error.message}`;
+                    uploadStatus.className = 'status-error';
+                 } else {
+                    alert(`删除文档 "${docTitle}" 失败: ${error.message}`);
+                 }
+            }
+        }
+
     </script>
 </body>
 </html>
