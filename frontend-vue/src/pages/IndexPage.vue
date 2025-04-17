@@ -26,12 +26,12 @@
           <div v-if="configError" class="status error animate__animated animate__fadeInUp">
              {{ $t('message.configError') }}
           </div>
-          <!-- 如果配置尚未加载完成 (可选，可以在此处放一个加载中状态) -->
-          <div v-else-if="!config" class="status loading animate__animated animate__fadeInUp">
+          <!-- 如果配置尚未加载完成 -->
+          <div v-else-if="!loadedConfig" class="status loading animate__animated animate__fadeInUp">
              {{ $t('message.loading') }}
           </div>
 
-          <!-- 问题输入框和提交按钮，只有在配置加载成功后才显示 -->
+          <!-- 问题输入框和提交按钮，只有在配置加载成功且没有错误时才显示 -->
           <div v-else class="question-form">
             <v-textarea
               v-model="question"
@@ -68,8 +68,9 @@
           </transition>
         </div>
 
-        <!-- Mascot -->
-        <div 
+        <!-- Mascot (Placeholder image removed as the backend route doesn't exist) -->
+        <!--
+        <div
           ref="mascot"
           class="mascot"
         >
@@ -79,6 +80,7 @@
             height="150"
           ></v-img>
         </div>
+        -->
       </div>
     </div>
   </div>
