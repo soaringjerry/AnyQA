@@ -18,12 +18,16 @@ RUN go mod download
 RUN go mod tidy
 
 # 复制整个项目源代码，保持原始目录结构
+# 这步放在 go mod download/tidy 之后，
+# 这样只有代码更改时才需要重新构建，而不是依赖项更改时。
 COPY . .
 
+# 切换到 backend 目录进行构建
+WORKDIR /app/backend
+
 # 构建 Go 应用，禁用 CGO，创建静态链接的可执行文件
-# 将可执行文件命名为 'server'
-# 使用完整的包路径进行构建
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./backend
+# 将可执行文件命名为 'server' 并输出到 /app 目录
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/server .
 
 # ---- Run Stage ----
 # 使用一个非常小的基础镜像
