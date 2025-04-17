@@ -85,148 +85,180 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import jsyaml from 'js-yaml'
-import { useRoute } from 'vue-router'
-import { useI18n } from 'vue-i18n'
-import LanguageSwitcher from '../components/LanguageSwitcher.vue'
+import { ref, onMounted, onBeforeUnmount, watchEffect } from 'vue'; // Added watchEffect
+// import jsyaml from 'js-yaml'; // No longer needed
+import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
+import LanguageSwitcher from '../components/LanguageSwitcher.vue';
+import { getConfig } from '../config/index.js'; // Import the correct config loader
 
-const question = ref('')
-const statusMessage = ref('')
-const statusType = ref('')
-const isSubmitting = ref(false)
-const mascot = ref(null)
-const sakuras = ref([])
-let sakuraId = 0
-let sakuraInterval = null
+const question = ref('');
+const statusMessage = ref('');
+const statusType = ref('');
+const isSubmitting = ref(false);
+const mascot = ref(null);
+const sakuras = ref([]);
+let sakuraId = 0;
+let sakuraInterval = null;
 
-// 修改配置相关状态
-const config = ref(null)
-const configError = ref(null)
-const sessionId = ref(null)
+// --- Configuration State ---
+const loadedConfig = ref(null); // Store the loaded config
+const configError = ref(null); // Store potential config loading errors
+const sessionId = ref(null); // Session ID from query params
+// --- End Configuration State ---
 
-const route = useRoute()
-const { t } = useI18n()
+const route = useRoute();
+const { t } = useI18n();
 
-// 修改加载配置函数
-async function loadConfig() {
-  try {
-    sessionId.value = route.query.sessionId
-    
-    if (!sessionId.value) {
-      throw new Error('缺少 sessionId 参数')
-    }
-
-    const response = await fetch('/src/config/config.yaml')
-    if (!response.ok) {
-      throw new Error(`加载失败: ${response.status}`)
-    }
-    const text = await response.text()
-    const conf = jsyaml.load(text)
-
-    if (!conf?.api?.endpoint) {
-      throw new Error('缺少 api.endpoint 配置')
-    }
-
-    config.value = conf
-  } catch (error) {
-    console.error('配置加载错误:', error)
-    configError.value = error.message
+// Helper function to get API endpoint, ensuring config is loaded
+function getApiEndpoint() {
+  if (!loadedConfig.value || !loadedConfig.value.api || !loadedConfig.value.api.endpoint) {
+    console.error('API Configuration not loaded yet.');
+    // Set error state or throw, depending on desired behavior
+    configError.value = t('message.configError'); // Use i18n key
+    throw new Error('API configuration is not available.');
   }
+  // Clear config error if we successfully get the endpoint
+  configError.value = null;
+  return loadedConfig.value.api.endpoint;
 }
 
-// 状态展示逻辑
-function showStatus(message, type) {
-  // 直接使用 i18n key 作为 message 参数会更好
-  // 这样可以避免字符串硬编码的比较
-  if (message === t('message.submitting')) {
-    statusMessage.value = t('message.submitting')
-  } else if (message === t('message.success')) {
-    statusMessage.value = t('message.success') 
-  } else if (message === t('message.submitError')) {
-    statusMessage.value = t('message.submitError')
-  } else {
-    // 对于非 i18n 的消息,直接显示
-    statusMessage.value = message
-  }
-  statusType.value = type
-  
+// --- Status Display Logic ---
+function showStatus(messageKey, type) { // Pass i18n key directly
+  statusMessage.value = t(messageKey); // Translate the key
+  statusType.value = type;
+
   if (type !== 'loading') {
     setTimeout(() => {
-      statusMessage.value = ''
-      statusType.value = ''
-    }, 3000)
+      statusMessage.value = '';
+      statusType.value = '';
+    }, 3000);
   }
 }
+// --- End Status Display Logic ---
 
-// 修改提交问题函数中的 sessionId
-// 修改提交函数
-function submitQuestion() {
-  const content = question.value.trim()
-  if (!content) return
-  
-  // 立即清空输入
-  question.value = ''
-  showStatus(t('message.submitting'), 'loading')
-  
+// --- Submit Question Logic ---
+async function submitQuestion() { // Make async to handle potential errors from getApiEndpoint
+  const content = question.value.trim();
+  if (!content || isSubmitting.value) return; // Prevent empty or double submission
+
+  // Check if config is loaded and session ID exists
+  if (!loadedConfig.value) {
+      showStatus('message.configError', 'error');
+      return;
+  }
+   if (!sessionId.value) {
+      showStatus('message.noSessionIdError', 'error'); // Add a specific i18n key for this
+      return;
+  }
+
+  isSubmitting.value = true;
+  const currentQuestion = question.value; // Store current question before clearing
+  question.value = ''; // Clear input immediately
+  showStatus('message.submitting', 'loading');
+
   const data = {
     sessionId: sessionId.value,
     content: content
-  }
-  
-  // 创建一个检查状态码的请求
-  fetch(`${config.value.api.endpoint}/question`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(data)
-  })
-  .then(response => {
-    if (response.status === 200) {
-      showStatus(t('message.success'), 'success')
-    }
-  })
-  .catch(() => {
-    // 如果 fetch 失败，使用 sendBeacon 作为后备方案
-    navigator.sendBeacon(
-      `${config.value.api.endpoint}/question`,
-      JSON.stringify(data)
-    )
-    showStatus(t('message.success'), 'success')
-  })
-}
+  };
 
-// 樱花效果
+  try {
+    const apiEndpoint = getApiEndpoint(); // Get endpoint (might throw if config not ready)
+
+    // Use fetch API
+    const response = await fetch(`${apiEndpoint}/question`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (response.ok) { // Check if response status is 2xx
+      showStatus('message.success', 'success');
+    } else {
+      // Handle non-2xx responses (e.g., 400, 500)
+      console.error('Submission failed with status:', response.status);
+      showStatus('message.submitError', 'error');
+      question.value = currentQuestion; // Restore input on error
+    }
+  } catch (error) {
+    // Handle fetch errors (network issues, config loading errors from getApiEndpoint)
+    console.error('Submission fetch error:', error);
+    showStatus('message.submitError', 'error');
+    question.value = currentQuestion; // Restore input on error
+
+    // Fallback with sendBeacon (optional, consider if necessary)
+    // Note: sendBeacon doesn't provide response feedback.
+    // try {
+    //   const apiEndpoint = getApiEndpoint(); // Get endpoint again for beacon
+    //   navigator.sendBeacon(
+    //     `${apiEndpoint}/question`,
+    //     JSON.stringify(data)
+    //   );
+    //   // Assume success for beacon, as we don't get feedback
+    //   // showStatus('message.success', 'success'); // Or maybe a different message?
+    // } catch (beaconError) {
+    //   console.error("Beacon fallback failed:", beaconError);
+    // }
+  } finally {
+    isSubmitting.value = false; // Ensure loading state is reset
+  }
+}
+// --- End Submit Question Logic ---
+
+
+// --- Sakura Effect ---
 function createSakura() {
-  const id = sakuraId++
-  const duration = Math.random() * 3 + 2  // 2-5秒的随机时长
-  
+  const id = sakuraId++;
+  const duration = Math.random() * 3 + 2; // 2-5秒的随机时长
+
   const style = {
     left: `${Math.random() * window.innerWidth}px`,
     top: '-20px',
     fontSize: `${Math.random() * 20 + 10}px`,
     opacity: Math.random() * 0.6 + 0.4,
     animation: `falling ${duration}s linear forwards`
+  };
+
+  sakuras.value.push({ id, style });
+
+  setTimeout(() => {
+    sakuras.value = sakuras.value.filter(s => s.id !== id);
+  }, duration * 1000);
+}
+// --- End Sakura Effect ---
+
+
+// --- Lifecycle Hooks ---
+onMounted(async () => {
+  // Get session ID from route query params
+  sessionId.value = route.query.sessionId;
+  if (!sessionId.value) {
+      console.error("Missing sessionId in URL query parameters.");
+      configError.value = t('message.noSessionIdError'); // Show error if no session ID
   }
 
-  sakuras.value.push({ id, style })
-  
-  setTimeout(() => {
-    sakuras.value = sakuras.value.filter(s => s.id !== id)
-  }, duration * 1000)
-}
+  // Load configuration
+  try {
+    loadedConfig.value = await getConfig();
+    console.log('IndexPage config loaded:', loadedConfig.value);
+    configError.value = null; // Clear error on success
+  } catch (error) {
+    console.error("Failed to load configuration in IndexPage:", error);
+    configError.value = t('message.configError'); // Show config error
+  }
 
-onMounted(async () => {
-  await loadConfig()
-  sakuraInterval = setInterval(createSakura, 500)
-})
+  // Start Sakura effect only if config loaded successfully (or regardless?)
+  sakuraInterval = setInterval(createSakura, 500);
+});
 
 onBeforeUnmount(() => {
   if (sakuraInterval) {
-    clearInterval(sakuraInterval)
+    clearInterval(sakuraInterval);
   }
-})
+});
+// --- End Lifecycle Hooks ---
 </script>
 
 <style scoped>

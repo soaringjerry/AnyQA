@@ -126,123 +126,146 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue' // 导入 watch
-import { useI18n } from 'vue-i18n'
-import config from '../config/index.js'
-import { marked } from 'marked'
-import { useRoute } from 'vue-router'
-import LanguageSwitcher from '../components/LanguageSwitcher.vue'
+import { useI18n } from 'vue-i18n';
+import { getConfig } from '../config/index.js'; // 导入具名函数
+import { marked } from 'marked';
+import { useRoute } from 'vue-router';
+import LanguageSwitcher from '../components/LanguageSwitcher.vue';
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const questions = ref([])
-const showModal = ref(false)
-const currentQuestionId = ref(null)
-const currentQuestionContent = ref('')
-const currentQuestionAiSuggestion = ref('')
-const currentQuestionKbSuggestion = ref('')
-const route = useRoute()
-const sessionId = computed(() => route.query.sessionId)
+const loadedConfig = ref(null); // 用于存储加载的配置
+const questions = ref([]);
+const showModal = ref(false);
+const currentQuestionId = ref(null);
+const currentQuestionContent = ref('');
+const currentQuestionAiSuggestion = ref('');
+const currentQuestionKbSuggestion = ref('');
+const route = useRoute();
+const sessionId = computed(() => route.query.sessionId);
 
 // 文档管理相关的 ref
-const fileInputRef = ref(null)
-const uploadStatus = ref('')
-const uploadStatusClass = ref('')
-const uploadedDocuments = ref([])
-const loadingDocuments = ref(false)
+const fileInputRef = ref(null);
+const uploadStatus = ref('');
+const uploadStatusClass = ref('');
+const uploadedDocuments = ref([]);
+const loadingDocuments = ref(false);
 
 // 提示词编辑相关的 ref
-const genericPrompt = ref('')
-const kbPrompt = ref('')
-const promptStatus = ref('')
-const promptStatusClass = ref('')
-const loadingPrompts = ref(false)
-const savingPrompts = ref(false)
+const genericPrompt = ref('');
+const kbPrompt = ref('');
+const promptStatus = ref('');
+const promptStatusClass = ref('');
+const loadingPrompts = ref(false);
+const savingPrompts = ref(false);
 
-let intervalId = null
+let intervalId = null;
+
+// Helper function to get API endpoint, ensuring config is loaded
+function getApiEndpoint() {
+  if (!loadedConfig.value || !loadedConfig.value.api || !loadedConfig.value.api.endpoint) {
+    console.error('Configuration or API endpoint not loaded yet.');
+    // Optionally throw an error or return a default/null value
+    // depending on how you want to handle this case.
+    // For now, let's throw to make the issue obvious during development.
+    throw new Error('API configuration is not available.');
+  }
+  return loadedConfig.value.api.endpoint;
+}
+
 
 function openModal(q) {
-  currentQuestionId.value = q.id
-  currentQuestionContent.value = q.content || ''
-  currentQuestionAiSuggestion.value = q.ai_suggestion || t('presenter.noAiSuggestion')
-  currentQuestionKbSuggestion.value = q.kb_suggestion || ''
-  showModal.value = true
+  currentQuestionId.value = q.id;
+  currentQuestionContent.value = q.content || '';
+  currentQuestionAiSuggestion.value = q.ai_suggestion || t('presenter.noAiSuggestion');
+  currentQuestionKbSuggestion.value = q.kb_suggestion || '';
+  showModal.value = true;
 }
 
 function hideModal() {
-  showModal.value = false
+  showModal.value = false;
 }
 
 // 将markdown内容转化为安全的HTML
-const currentQuestionMarkdown = computed(() => marked.parse(currentQuestionContent.value || ''))
-const currentAISuggestionMarkdown = computed(() => marked.parse(currentQuestionAiSuggestion.value || t('presenter.noAiSuggestion')))
-const currentKbSuggestionMarkdown = computed(() => marked.parse(currentQuestionKbSuggestion.value || t('presenter.noKbSuggestion')))
+const currentQuestionMarkdown = computed(() => marked.parse(currentQuestionContent.value || ''));
+const currentAISuggestionMarkdown = computed(() => marked.parse(currentQuestionAiSuggestion.value || t('presenter.noAiSuggestion')));
+const currentKbSuggestionMarkdown = computed(() => marked.parse(currentQuestionKbSuggestion.value || t('presenter.noKbSuggestion')));
 
 async function loadQuestions() {
   try {
-    if (!sessionId.value) {
+    if (!sessionId.value || !loadedConfig.value) { // 确保配置已加载
       return;
     }
-    const response = await fetch(`${config.api.endpoint}/questions/${sessionId.value}`)
-    if (!response.ok) throw new Error('加载问题列表失败')
-    const data = await response.json()
-    questions.value = data
+    const apiEndpoint = getApiEndpoint();
+    const response = await fetch(`${apiEndpoint}/questions/${sessionId.value}`);
+    if (!response.ok) throw new Error('加载问题列表失败');
+    const data = await response.json();
+    questions.value = data;
   } catch (error) {
-    console.error('加载问题失败:', error)
+    console.error('加载问题失败:', error);
   }
 }
 
 async function deleteQuestion(id) {
-  if (!confirm(t('presenter.confirmDelete'))) return
+  if (!confirm(t('presenter.confirmDelete')) || !loadedConfig.value) return; // 确保配置已加载
   try {
-    await fetch(`${config.api.endpoint}/question/${id}`, {
+    const apiEndpoint = getApiEndpoint();
+    await fetch(`${apiEndpoint}/question/${id}`, {
       method: 'DELETE'
-    })
-    loadQuestions()
+    });
+    loadQuestions();
   } catch (error) {
-    console.error('删除失败:', error)
+    console.error('删除失败:', error);
   }
 }
 
 async function markAsFinished(id) {
+  if (!loadedConfig.value) return; // 确保配置已加载
   try {
-    await fetch(`${config.api.endpoint}/question/status`, {
+    const apiEndpoint = getApiEndpoint();
+    await fetch(`${apiEndpoint}/question/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status: 'finished' })
-    })
-    loadQuestions()
+    });
+    loadQuestions();
   } catch (error) {
-    console.error('更新失败:', error)
+    console.error('更新失败:', error);
   }
 }
 
 async function showQuestionOnDisplay() {
-  if (!currentQuestionId.value) return
+  if (!currentQuestionId.value || !loadedConfig.value) return; // 确保配置已加载
   try {
-    const response = await fetch(`${config.api.endpoint}/question/status`, {
+    const apiEndpoint = getApiEndpoint();
+    const response = await fetch(`${apiEndpoint}/question/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: currentQuestionId.value,
         status: 'showing'
       })
-    })
+    });
     if (response.ok) {
-      hideModal()
-      loadQuestions()
+      hideModal();
+      loadQuestions();
     }
   } catch (error) {
-    console.error('设置显示问题失败:', error)
+    console.error('设置显示问题失败:', error);
   }
 }
 
 // 封装加载初始数据的函数
-function loadInitialData() {
+async function loadInitialData() { // Make async to await config
+    if (!loadedConfig.value) {
+        console.log("Config not loaded yet, skipping initial data load.");
+        return; // Config must be loaded first
+    }
     if (sessionId.value) {
         console.log("Session ID found, loading initial data:", sessionId.value);
-        loadQuestions();
-        loadUploadedDocuments();
-        loadSessionPrompts();
+        await loadQuestions(); // Await these to ensure they run after config is ready
+        await loadUploadedDocuments();
+        await loadSessionPrompts();
         if (!intervalId) { // 避免重复设置 interval
             intervalId = setInterval(loadQuestions, 5000);
         }
@@ -251,28 +274,37 @@ function loadInitialData() {
     }
 }
 
-onMounted(() => {
+onMounted(async () => { // Make onMounted async
   marked.setOptions({
     breaks: true,
     gfm: true,
     headerIds: false
-  })
-  loadInitialData(); // 尝试加载初始数据
-})
+  });
+  try {
+    loadedConfig.value = await getConfig(); // Load config first
+    console.log('PresenterPage config loaded:', loadedConfig.value);
+    await loadInitialData(); // Now load data that depends on config
+  } catch (error) {
+    console.error("Failed to load configuration in PresenterPage:", error);
+    // Handle config load error (e.g., show error message)
+    uploadStatus.value = t('presenter.configLoadError'); // Example error message
+    uploadStatusClass.value = 'status-error';
+  }
+});
 
 onUnmounted(() => {
   if (intervalId) {
-    clearInterval(intervalId)
-    intervalId = null
+    clearInterval(intervalId);
+    intervalId = null;
   }
-})
+});
 
 // 监听 sessionId 的变化，以便在路由参数可用时加载数据
-watch(sessionId, (newSessionId, oldSessionId) => {
+watch(sessionId, async (newSessionId, oldSessionId) => { // Make watcher async
     console.log("Session ID changed:", oldSessionId, "->", newSessionId);
-    if (newSessionId) {
-        loadInitialData();
-    } else {
+    if (newSessionId && loadedConfig.value) { // Ensure config is loaded too
+        await loadInitialData();
+    } else if (!newSessionId) {
         // Session ID 丢失，可能需要清理状态
         questions.value = [];
         uploadedDocuments.value = [];
@@ -282,6 +314,9 @@ watch(sessionId, (newSessionId, oldSessionId) => {
             clearInterval(intervalId);
             intervalId = null;
         }
+    } else if (newSessionId && !loadedConfig.value) {
+        console.warn("Session ID changed, but config not loaded yet. Waiting for config.");
+        // Config will be loaded by onMounted, which will then call loadInitialData
     }
 });
 
@@ -317,6 +352,11 @@ async function handleDocumentUpload() {
     uploadStatusClass.value = 'status-error';
     return;
   }
+  if (!loadedConfig.value) { // 确保配置已加载
+      uploadStatus.value = t('presenter.configLoadError');
+      uploadStatusClass.value = 'status-error';
+      return;
+  }
 
   uploadStatus.value = t('presenter.uploading');
   uploadStatusClass.value = '';
@@ -326,7 +366,8 @@ async function handleDocumentUpload() {
   formData.append('sessionId', sessionId.value);
 
   try {
-    const response = await fetch(`${config.api.endpoint}/documents`, {
+    const apiEndpoint = getApiEndpoint();
+    const response = await fetch(`${apiEndpoint}/documents`, {
       method: 'POST',
       body: formData,
     });
@@ -354,9 +395,15 @@ async function loadUploadedDocuments() {
     uploadedDocuments.value = [];
     return;
   }
+   if (!loadedConfig.value) { // 确保配置已加载
+      console.error("无法加载文档列表：配置未加载");
+      uploadedDocuments.value = [];
+      return;
+  }
   loadingDocuments.value = true;
   try {
-    const response = await fetch(`${config.api.endpoint}/documents/${sessionId.value}`);
+    const apiEndpoint = getApiEndpoint();
+    const response = await fetch(`${apiEndpoint}/documents/${sessionId.value}`);
     if (!response.ok) {
       throw new Error(`获取文档列表失败: ${response.statusText}`);
     }
@@ -374,13 +421,14 @@ async function loadUploadedDocuments() {
 
 // 处理删除文档
 async function handleDeleteDocument(docId, docTitle) {
-  if (!confirm(t('presenter.confirmDeleteDoc', { title: docTitle }))) return;
+  if (!confirm(t('presenter.confirmDeleteDoc', { title: docTitle })) || !loadedConfig.value) return; // 确保配置已加载
 
   uploadStatus.value = t('presenter.deletingDoc', { title: docTitle });
   uploadStatusClass.value = '';
 
   try {
-    const response = await fetch(`${config.api.endpoint}/document/${docId}`, {
+    const apiEndpoint = getApiEndpoint();
+    const response = await fetch(`${apiEndpoint}/document/${docId}`, {
       method: 'DELETE',
     });
     const result = await response.json();
@@ -408,11 +456,16 @@ async function loadSessionPrompts() {
     console.error("无法加载提示词：缺少 sessionId");
     return;
   }
+   if (!loadedConfig.value) { // 确保配置已加载
+      console.error("无法加载提示词：配置未加载");
+      return;
+  }
   loadingPrompts.value = true;
   promptStatus.value = t('presenter.loadingPrompts');
   promptStatusClass.value = '';
   try {
-    const response = await fetch(`${config.api.endpoint}/prompts/${sessionId.value}`);
+    const apiEndpoint = getApiEndpoint();
+    const response = await fetch(`${apiEndpoint}/prompts/${sessionId.value}`);
     if (!response.ok) {
       throw new Error(`获取提示词失败: ${response.statusText}`);
     }
@@ -436,12 +489,18 @@ async function handleUpdatePrompts() {
     promptStatusClass.value = 'status-error';
     return;
   }
+   if (!loadedConfig.value) { // 确保配置已加载
+      promptStatus.value = t('presenter.configLoadError');
+      promptStatusClass.value = 'status-error';
+      return;
+  }
   savingPrompts.value = true;
   promptStatus.value = t('presenter.savingPrompts');
   promptStatusClass.value = '';
 
   try {
-    const response = await fetch(`${config.api.endpoint}/prompts/${sessionId.value}`, {
+    const apiEndpoint = getApiEndpoint();
+    const response = await fetch(`${apiEndpoint}/prompts/${sessionId.value}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

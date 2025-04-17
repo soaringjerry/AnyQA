@@ -29,76 +29,137 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watchEffect } from 'vue'
-import { useI18n } from 'vue-i18n'
-import config from '../config/index.js'
-import LanguageSwitcher from '../components/LanguageSwitcher.vue'
+import { ref, computed, onMounted, onUnmounted, watchEffect } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { getConfig } from '../config/index.js'; // 导入具名函数
+import LanguageSwitcher from '../components/LanguageSwitcher.vue';
 
-const { t } = useI18n()
+const { t } = useI18n();
 
-const questions = ref([])
-const sessionId = ref('')
+const loadedConfig = ref(null); // 用于存储加载的配置
+const questions = ref([]);
+const sessionId = ref('');
 
 // 获取 URL 中的 sessionId
 watchEffect(() => {
-  const urlParams = new URLSearchParams(window.location.hash.split('?')[1])
-  sessionId.value = urlParams.get('sessionId')
-})
+  const urlParams = new URLSearchParams(window.location.hash.split('?')[1]);
+  sessionId.value = urlParams.get('sessionId');
+});
 
 const currentQuestion = computed(() => {
-  if (!questions.value) return null
-  return questions.value.find(q => q.status === 'showing')
-})
+  if (!questions.value) return null;
+  return questions.value.find(q => q.status === 'showing');
+});
 
 const pendingQuestions = computed(() => {
-  if (!questions.value) return []
-  return questions.value.filter(q => q.status === 'pending')
-})
+  if (!questions.value) return [];
+  return questions.value.filter(q => q.status === 'pending');
+});
 
-let ws = null
-let intervalId = null
+let ws = null;
+let intervalId = null;
+
+// Helper function to get API endpoint, ensuring config is loaded
+function getApiEndpoint() {
+  if (!loadedConfig.value || !loadedConfig.value.api || !loadedConfig.value.api.endpoint) {
+    console.error('API Configuration not loaded yet.');
+    throw new Error('API configuration is not available.');
+  }
+  return loadedConfig.value.api.endpoint;
+}
+
+// Helper function to get WebSocket endpoint, ensuring config is loaded
+function getWsEndpoint() {
+  if (!loadedConfig.value || !loadedConfig.value.ws || !loadedConfig.value.ws.endpoint) {
+    console.error('WebSocket Configuration not loaded yet.');
+    throw new Error('WebSocket configuration is not available.');
+  }
+  return loadedConfig.value.ws.endpoint;
+}
+
 
 async function loadQuestions() {
   try {
-    if (!sessionId.value) {
-      console.warn('No sessionId provided')
-      questions.value = []
-      return
+    if (!sessionId.value || !loadedConfig.value) { // 确保配置已加载
+      console.warn('No sessionId provided or config not loaded');
+      questions.value = [];
+      return;
     }
-
-    const response = await fetch(`${config.api.endpoint}/questions/${sessionId.value}`)
+    const apiEndpoint = getApiEndpoint(); // 使用辅助函数获取端点
+    const response = await fetch(`${apiEndpoint}/questions/${sessionId.value}`);
     if (!response.ok) {
-      console.error('Failed to load questions:', response.status)
-      questions.value = []
-      return
+      console.error('Failed to load questions:', response.status);
+      questions.value = [];
+      return;
     }
-    const data = await response.json()
-    questions.value = data || []
+    const data = await response.json();
+    questions.value = data || [];
   } catch (error) {
-    console.error('Loading failed:', error)
-    questions.value = []
+    console.error('Loading questions failed:', error);
+    questions.value = [];
   }
 }
 
-function initializeApp() {
-  // Initialize WebSocket connection
-  ws = new WebSocket(config.ws.endpoint)
-  ws.onmessage = () => {
-    loadQuestions()
+function initializeWebSocket() {
+  if (ws) { // Close existing connection if any
+      ws.close();
   }
-  
+  try {
+    const wsEndpoint = getWsEndpoint(); // 使用辅助函数获取端点
+    console.log(`Initializing WebSocket connection to: ${wsEndpoint}`);
+    ws = new WebSocket(wsEndpoint);
+    ws.onopen = () => {
+        console.log('WebSocket connection established.');
+        // Optionally send session ID or other info upon connection
+        // ws.send(JSON.stringify({ type: 'register', sessionId: sessionId.value }));
+    };
+    ws.onmessage = (event) => {
+        console.log('WebSocket message received:', event.data);
+        // Assuming the message indicates an update is needed
+        loadQuestions();
+    };
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+    ws.onclose = (event) => {
+        console.log('WebSocket connection closed:', event.code, event.reason);
+        ws = null; // Reset ws variable
+        // Optionally attempt to reconnect after a delay
+        // setTimeout(initializeWebSocket, 5000);
+    };
+  } catch (error) {
+      console.error("Failed to initialize WebSocket:", error);
+  }
+}
+
+async function initializeApp() {
+  if (!loadedConfig.value) {
+      console.error("Cannot initialize app, config not loaded.");
+      return;
+  }
   // Initial load
-  loadQuestions()
-  
-  // Periodic refresh
-  intervalId = setInterval(loadQuestions, 5000)
+  await loadQuestions(); // Await initial load
+
+  // Initialize WebSocket connection only after config is loaded
+  initializeWebSocket();
+
+  // Periodic refresh (consider if WS replaces the need for polling)
+  if (intervalId) clearInterval(intervalId); // Clear previous interval if any
+  intervalId = setInterval(loadQuestions, 5000); // Re-establish interval
 }
 
-onMounted(() => {
-  initializeApp()
-  
+onMounted(async () => { // Make onMounted async
+  try {
+    loadedConfig.value = await getConfig(); // Load config first
+    console.log('DisplayPage config loaded:', loadedConfig.value);
+    await initializeApp(); // Initialize app after config is loaded
+  } catch (error) {
+    console.error("Failed to load configuration in DisplayPage:", error);
+    // Handle config load error (e.g., show error message)
+  }
+
   // Add these meta tags to ensure proper viewport behavior
-  const meta = document.createElement('meta')
+  const meta = document.createElement('meta');
   meta.name = 'viewport'
   meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
   document.head.appendChild(meta)
