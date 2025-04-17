@@ -150,6 +150,9 @@ jobs:
         password: ${{ secrets.SSH_PASSWORD }}
         script: mkdir -p /root/anyqa_app # Ensure the target directory exists
 
+    - name: List workspace files # Add this step for debugging
+      run: ls -la $GITHUB_WORKSPACE
+
     - name: Copy docker-compose.yml to server
       uses: appleboy/scp-action@master
       with:
