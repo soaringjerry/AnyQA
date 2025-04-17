@@ -4,8 +4,8 @@
 # 使用官方 Go Alpine 镜像作为构建环境，匹配 go.mod 文件
 FROM golang:1.22.0-alpine AS builder
 
-# 设置工作目录
-WORKDIR /app
+# 设置工作目录为 GOPATH 中的模块路径
+WORKDIR /go/src/github.com/soaringjerry/AnyQA
 
 # 复制 Go 模块文件
 COPY go.mod go.sum ./
@@ -27,7 +27,7 @@ FROM alpine:latest
 WORKDIR /app
 
 # 从构建阶段复制编译好的二进制文件
-COPY --from=builder /app/server .
+COPY --from=builder /go/src/github.com/soaringjerry/AnyQA/server .
 
 # （可选）如果你的应用需要读取配置文件或其他静态资源，也需要在这里复制
 # 例如: COPY --from=builder /app/config/config.go.example ./config/config.go.example
