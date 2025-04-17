@@ -14,6 +14,8 @@ RUN apk add --no-cache git
 COPY go.mod go.sum ./
 # 下载依赖项。利用 Docker 缓存，只有在 go.mod/go.sum 变化时才重新下载
 RUN go mod download
+# 确保模块依赖关系是最新的
+RUN go mod tidy
 
 # 复制整个项目源代码，保持原始目录结构
 COPY . .
