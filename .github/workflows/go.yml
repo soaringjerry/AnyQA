@@ -52,7 +52,14 @@ jobs:
 
     - name: List frontend config directory # Diagnostic step
       run: ls -la frontend-vue/src/config/
-
+      
+    - name: Copy config.yaml.example to config.yaml if needed
+      run: |
+        if [ ! -f frontend-vue/src/config/config.yaml ]; then
+          echo "config.yaml not found, copying from example file"
+          cp frontend-vue/src/config/config.yaml.example frontend-vue/src/config/config.yaml
+        fi
+        
     - name: Build Frontend
       run: cd frontend-vue && npm run build
 
