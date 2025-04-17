@@ -1,9 +1,8 @@
 # backend/Dockerfile
 
 # ---- Build Stage ----
-# 使用官方 Go Alpine 镜像作为构建环境，版本需要与你的项目匹配 (go.mod 通常会指定)
-# 假设使用 Go 1.20 (与你现有 go.yml 一致)
-FROM golang:1.20-alpine AS builder
+# 使用官方 Go Alpine 镜像作为构建环境，匹配 go.mod 文件
+FROM golang:1.22.0-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
