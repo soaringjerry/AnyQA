@@ -50,6 +50,9 @@ jobs:
     - name: Install Frontend Dependencies
       run: cd frontend-vue && npm install
 
+    - name: List frontend config directory # Diagnostic step
+      run: ls -la frontend-vue/src/config/
+
     - name: Build Frontend
       run: cd frontend-vue && npm run build
 
