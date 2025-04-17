@@ -7,6 +7,9 @@ FROM golang:1.22.0-alpine AS builder
 # 设置工作目录为 GOPATH 中的模块路径
 WORKDIR /go/src/github.com/soaringjerry/AnyQA
 
+# 安装 git，因为 go mod tidy 可能需要它
+RUN apk add --no-cache git
+
 # 复制 Go 模块文件
 COPY go.mod go.sum ./
 # 下载依赖项。利用 Docker 缓存，只有在 go.mod/go.sum 变化时才重新下载
