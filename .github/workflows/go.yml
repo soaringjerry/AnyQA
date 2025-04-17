@@ -180,8 +180,11 @@ jobs:
           export BACKEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:${{ github.sha }}
           export FRONTEND_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:${{ github.sha }}
 
-          # 登录 GHCR (如果服务器需要拉取私有镜像)
-          # 注意：这需要在服务器上预先配置好 Docker 登录 GHCR 的凭证，或者在这里传入 GHCR_TOKEN
+          # 登录 GHCR 以拉取私有镜像
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+          # 更新 docker-compose.yml 中的 image 字段 (或者使用环境变量覆盖)
+          # 这里我们假设 docker-compose.yml 使用环境变量来指定镜像
           # echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
           # 更新 docker-compose.yml 中的 image 字段 (或者使用环境变量覆盖)
