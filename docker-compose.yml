@@ -1,0 +1,52 @@
+# docker-compose.yml
+version: '3.8' # 使用较新的 Compose 文件版本
+
+services:
+  backend:
+    image: ${BACKEND_IMAGE} # 使用环境变量指定镜像
+    container_name: anyqa_backend # 给容器一个友好的名字
+    ports:
+      - "8080:8080" # 将容器的 8080 端口映射到主机的 8080 端口
+    restart: always # 容器退出时总是尝试重启
+    environment:
+      # 这里需要设置后端运行所需的环境变量
+      # 重要：这些值应该与你的 config.go 中的 getEnv 对应
+      # 在本地开发时，可以考虑使用 .env 文件加载这些变量
+      # 在 CI/CD 中，这些值会通过 GitHub Secrets 注入
+      - DB_USER=${DB_USER:-root} # 使用环境变量或默认值
+      - DB_PASSWORD=${DB_PASSWORD:-password_placeholder} # 不要在此处使用实际密码
+      - DB_HOST=${DB_HOST:-db_host_placeholder} # 注意：如果数据库也在 Docker 中运行，这里需要是服务名
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_NAME=${DB_NAME:-aiqabeta}
+      - OPENAI_API_KEYs=${OPENAI_API_KEYs:-api_key_placeholder} # 这些敏感信息最好通过 .env 或 CI Secrets 提供
+      - OPENAI_API_URL=${OPENAI_API_URL:-https://api.openai.com/v1/chat/completions}
+      - OPENAI_MODEL=${OPENAI_MODEL:-chatgpt-4o-latest}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      - GENERIC_SYSTEM_PROMPT=${GENERIC_SYSTEM_PROMPT}
+      - KB_SYSTEM_PROMPT=${KB_SYSTEM_PROMPT}
+      - SERVER_PORT=:8080 # 确保与 Dockerfile 中 EXPOSE 的端口一致
+    networks:
+      - anyqa_network # 将服务连接到自定义网络
+
+  frontend:
+    image: ${FRONTEND_IMAGE} # 使用环境变量指定镜像
+    container_name: anyqa_frontend
+    ports:
+      - "80:80" # 将容器的 80 端口映射到主机的 80 端口 (如果 80 端口被占用，可以改成如 "8081:80")
+    restart: always
+    depends_on: # （可选）如果前端需要等待后端启动
+      - backend
+    networks:
+      - anyqa_network
+
+networks: # 定义自定义网络
+  anyqa_network:
+    driver: bridge
+
+# 注意：
+# 1. 环境变量：为了安全，强烈建议创建一个 .env 文件在项目根目录，
+#    并将敏感信息（如 DB_PASSWORD, OPENAI_API_KEYs）放入其中，
+#    然后在 .gitignore 中忽略 .env 文件。
+#    docker-compose 会自动加载 .env 文件中的变量。
+# 2. 数据库：此配置假设数据库在 Docker Compose 外部运行（IP: YOUR_SERVER_IP）。
+#    如果想在 Docker 中运行数据库，需要添加一个数据库服务（如 mysql 或 postgres）。
