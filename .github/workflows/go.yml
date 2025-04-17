@@ -116,7 +116,7 @@ jobs:
       with:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        password: ${{ secrets.SSH_PASSWORD }} # 使用密码认证
         script: |
           # 进入服务器上存放 docker-compose.yml 的目录 (请替换为实际路径)
           cd /path/to/your/app
