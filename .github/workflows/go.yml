@@ -33,6 +33,21 @@ jobs:
       with:
         go-version-file: 'go.mod' # Use version from go.mod
         cache: true # Enable dependency caching
+    
+    # 处理配置文件 - 将示例配置文件复制为实际配置文件，但使用环境变量替代敏感信息
+    - name: Copy config example files to actual config files
+      env:
+        # 这些是 GitHub Actions 构建时使用的环境变量，不会影响到服务器上的配置
+        DB_USER: ${{ secrets.DB_USER || 'root' }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD || 'github_actions_build_password' }}
+        DB_HOST: ${{ secrets.DB_HOST || 'localhost' }}
+        DB_PORT: ${{ secrets.DB_PORT || '3306' }}
+        DB_NAME: ${{ secrets.DB_NAME || 'aiqabeta' }}
+        OPENAI_API_KEYs: ${{ secrets.OPENAI_API_KEYs || 'dummy_key_for_build' }}
+        SERVER_PORT: ${{ secrets.SERVER_PORT || ':8080' }}
+      run: |
+        echo "Copying config.go.example to config.go with CI/CD values"
+        cp backend/config/config.go.example backend/config/config.go
 
     # The go test command will implicitly download dependencies if needed
 

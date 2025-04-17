@@ -5,7 +5,7 @@
 FROM golang:1.22.0-alpine AS builder
 
 # 设置工作目录为 GOPATH 中的模块路径
-WORKDIR /app
+WORKDIR /go/src/github.com/soaringjerry/AnyQA
 
 # 安装 git，因为 go mod tidy 可能需要它
 RUN apk add --no-cache git
@@ -23,7 +23,7 @@ RUN go mod tidy
 COPY . .
 
 # 切换到 backend 目录进行构建
-WORKDIR /app/backend
+WORKDIR /go/src/github.com/soaringjerry/AnyQA/backend
 
 # 构建 Go 应用，禁用 CGO，创建静态链接的可执行文件
 # 将可执行文件命名为 'server' 并输出到 /app 目录
