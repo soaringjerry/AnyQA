@@ -18,9 +18,6 @@ RUN go mod download
 # 复制整个项目源代码，保持原始目录结构
 COPY . .
 
-# 确保模块依赖项与源代码一致
-RUN go mod tidy
-
 # 构建 Go 应用，禁用 CGO，创建静态链接的可执行文件
 # 将可执行文件命名为 'server'
 # 使用完整的包路径进行构建
