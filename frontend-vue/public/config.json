@@ -1,0 +1,11 @@
+{
+  "api": {
+    "endpoint": "http://127.0.0.1:8080/api"
+  },
+  "session": {
+    "id": "alpha"
+  },
+  "ws": {
+    "endpoint": "ws://127.0.0.1:8080/api/ws"
+  }
+}

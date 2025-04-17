@@ -38,6 +38,9 @@ services:
       - backend
     networks:
       - anyqa_network
+    volumes:
+      # 将服务器上由 CI/CD 生成的生产环境 config.json 挂载到 Nginx 的 web 根目录
+      - /root/anyqa_app/config/frontend/config.json:/usr/share/nginx/html/config.json:ro # :ro 表示只读挂载
 
 networks: # 定义自定义网络
   anyqa_network:
