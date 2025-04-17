@@ -85,7 +85,13 @@
 *   **演讲者控制台**: 使用生成的链接访问 (例如 `http://localhost:5173/presenter?sessionId=YOUR_SESSION_ID`)。
 *   **大屏展示页面**: 使用生成的链接访问 (例如 `http://localhost:5173/display?sessionId=YOUR_SESSION_ID`)。
 
-## 📝 页面/组件说明 (Vue 前端)
+## 🚀 自动化部署 (CI/CD)
+
+本项目配置了 GitHub Actions 以实现自动化构建和部署。当代码推送到 `main` 分支时，会自动构建 Docker 镜像并部署到目标服务器。
+
+**详细的 CI/CD 配置步骤和要求，请参考：[CI/CD 设置指南 (CICD_SETUP.md)](./CICD_SETUP.md)**
+
+##  页面/组件说明 (Vue 前端)
 
 *   **`IndexPage.vue`**: 观众提问页面。
 *   **`PresenterPage.vue`**: 演讲者控制台，用于：
