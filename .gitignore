@@ -16,3 +16,4 @@ Download
 !frontend/config/*.example
 !frontend-vue/src/config/*.example
 !frontend-vue/src/config/index.js
+!frontend-vue/src/config/config.yaml # Don't ignore the actual config file
