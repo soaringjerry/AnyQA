@@ -12,12 +12,12 @@ COPY go.mod go.sum ./
 # 下载依赖项。利用 Docker 缓存，只有在 go.mod/go.sum 变化时才重新下载
 RUN go mod download
 
-# 复制后端源代码
-COPY ./backend/ .
+# 复制整个项目源代码，保持原始目录结构
+COPY . .
 
 # 构建 Go 应用，禁用 CGO，创建静态链接的可执行文件
 # 将可执行文件命名为 'server'
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./backend/main.go
 
 # ---- Run Stage ----
 # 使用一个非常小的基础镜像
