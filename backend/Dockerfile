@@ -13,7 +13,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # 复制后端源代码
-COPY . .
+COPY ./backend/ .
 
 # 构建 Go 应用，禁用 CGO，创建静态链接的可执行文件
 # 将可执行文件命名为 'server'
