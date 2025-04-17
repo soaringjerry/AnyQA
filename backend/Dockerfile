@@ -21,7 +21,7 @@ COPY . .
 # 构建 Go 应用，禁用 CGO，创建静态链接的可执行文件
 # 将可执行文件命名为 'server'
 # 使用完整的包路径进行构建
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server github.com/soaringjerry/AnyQA/backend
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./backend
 
 # ---- Run Stage ----
 # 使用一个非常小的基础镜像
