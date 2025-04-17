@@ -188,21 +188,23 @@ jobs:
           mkdir -p /root/anyqa_app/config/frontend
 
           # 创建生产环境的 config.json 文件
-          # 注意：这里的 API 和 WS 端点是相对路径，假设 Nginx 会处理代理
-          # 如果你的后端部署在不同域名或端口，需要相应修改这里的地址
+          # 注意：这里的 API 和 WS 端点是相对路径，假设 Nginx 会处理代理。
+          # 如果你的后端部署在不同域名或端口，需要相应修改这里的地址。
+          # 确保 echo 的内容是严格的 JSON 格式，不包含注释。
           echo '{
             "api": {
               "endpoint": "/api"
             },
             "session": {
-              "id": "production" # 或者其他生产环境标识
+              "id": "production"
             },
             "ws": {
-              "endpoint": "/api/ws" # 使用相对路径，假设通过同一域名访问
+              "endpoint": "/api/ws"
             }
           }' > /root/anyqa_app/config/frontend/config.json
 
           echo "Created production config.json at /root/anyqa_app/config/frontend/config.json"
+          echo "Content:"
           cat /root/anyqa_app/config/frontend/config.json # 打印文件内容以供调试
           # --- END: Create Production config.json ---
 
