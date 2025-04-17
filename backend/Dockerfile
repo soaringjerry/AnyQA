@@ -5,7 +5,7 @@
 FROM golang:1.22.0-alpine AS builder
 
 # 设置工作目录为 GOPATH 中的模块路径
-WORKDIR /go/src/github.com/soaringjerry/AnyQA
+WORKDIR /app
 
 # 安装 git，因为 go mod tidy 可能需要它
 RUN apk add --no-cache git
@@ -31,7 +31,7 @@ FROM alpine:latest
 WORKDIR /app
 
 # 从构建阶段复制编译好的二进制文件
-COPY --from=builder /go/src/github.com/soaringjerry/AnyQA/server .
+COPY --from=builder /app/server .
 
 # （可选）如果你的应用需要读取配置文件或其他静态资源，也需要在这里复制
 # 例如: COPY --from=builder /app/config/config.go.example ./config/config.go.example
