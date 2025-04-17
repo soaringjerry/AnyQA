@@ -31,14 +31,14 @@ func NewConfig() *Config {
 	cfg := &Config{
 		// 从环境变量中读取，如果不存在则使用默认值
 		DBUser:               getEnv("DB_USER", "root"),
-		DBPassword:           getEnv("DB_PASSWORD", "YOUR_DBPASSWORD"),
-		DBHost:               getEnv("DB_HOST", "YOUR_HOSTIP"),
+		DBPassword:           getEnv("DB_PASSWORD", "YOUR_DB_PASSWORD"),
+		DBHost:               getEnv("DB_HOST", "YOUR_DB_HOST"),
 		DBPort:               getEnv("DB_PORT", "3306"),
-		DBName:               getEnv("DB_NAME", "DB_NAME"),
-		OpenAIAPIKey:         getEnv("OPENAI_API_KEYs", "YOUR-APIKEY"),
+		DBName:               getEnv("DB_NAME", "aiqabeta"),
+		OpenAIAPIKey:         getEnv("OPENAI_API_KEYs", "YOUR_OPENAI_API_KEY"),
 		OpenAIAPIUrl:         getEnv("OPENAI_API_URL", "https://api.openai.com/v1/chat/completions"), // Keep this for chat if needed
 		OpenAIModel:          getEnv("OPENAI_MODEL", "chatgpt-4o-latest"),                            // Changed default model to gpt-4o
-		OpenAIEmbeddingModel: getEnv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),             // Added embedding model, using a recommended default
+		OpenAIEmbeddingModel: getEnv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large"),             // Added embedding model, using a recommended default
 		// 添加默认提示词加载
 		GenericSystemPrompt:       getEnv("GENERIC_SYSTEM_PROMPT", "You are a bilingual presentation assistant AI. Provide responses in markdown format to help Chinese speakers deliver English presentations. Always structure your response in two main sections: 1. Chinese Understanding: Provide core message, key terms (both Chinese and English), and key points for the speaker's understanding. 2. English Delivery: Give a quick answer, key speaking points, one clear example (marked as real or hypothetical), and useful phrases. Use headings (#), bold (**), and bullet points (*) in markdown format. Keep responses concise, use simple English, and clearly distinguish between real and hypothetical examples. Your goal is to help speakers understand the content in Chinese while preparing them to deliver confidently in English."),
 		KnowledgeBaseSystemPrompt: getEnv("KB_SYSTEM_PROMPT", "你是一个问答助手。请根据下面提供的相关信息来回答用户的问题。\n如果信息足够，请直接回答问题。如果信息不足或不相关，请说明无法根据提供的信息回答。\n请保持回答简洁明了。\n\n相关信息:\n---\n%s\n---\n"), // 注意保留 %s 用于插入上下文
@@ -51,7 +51,8 @@ func NewConfig() *Config {
 
 // GetDBDSN 返回用于sql.Open的数据库连接DSN
 func (c *Config) GetDBDSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
+	// 在 DSN 中添加 charset=utf8mb4 参数
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&charset=utf8mb4",
 		c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName)
 }
 
