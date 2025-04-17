@@ -6,7 +6,7 @@ services:
     image: ${BACKEND_IMAGE} # 使用环境变量指定镜像
     container_name: anyqa_backend # 给容器一个友好的名字
     ports:
-      - "8080:8080" # 将容器的 8080 端口映射到主机的 8080 端口
+      - "18080:8080" # 将容器的 8080 端口映射到主机的 18080 端口 (高位端口避免冲突)
     restart: always # 容器退出时总是尝试重启
     environment:
       # 这里需要设置后端运行所需的环境变量
