@@ -32,7 +32,7 @@ services:
     image: ${FRONTEND_IMAGE} # 使用环境变量指定镜像
     container_name: anyqa_frontend
     ports:
-      - "80:80" # 将容器的 80 端口映射到主机的 80 端口 (如果 80 端口被占用，可以改成如 "8081:80")
+      - "11451:80" # 将容器的 80 端口映射到主机的 8081 端口 (因为 80 端口已被占用)
     restart: always
     depends_on: # （可选）如果前端需要等待后端启动
       - backend
