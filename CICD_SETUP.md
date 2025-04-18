@@ -89,4 +89,57 @@
 *   **前端服务：** 默认监听在服务器的 `8081` 端口（因为 80 端口可能已被占用）。您可以通过 `http://<您的服务器IP或域名>:8081` 在浏览器中访问前端界面。
 
 ---
+
+## 外部反向代理配置 (可选，如果使用域名)
+
+如果您希望通过**单个域名**（例如 `https://vueqa.jerryspace.one`）来访问前端界面并让前端调用后端 API，您需要在您的 Docker 服务**前面**设置一个**外部反向代理**（例如服务器上的主 Nginx、Cloudflare 等）。
+
+这是因为浏览器访问该域名时，外部代理需要根据请求路径将流量转发到不同的内部服务：
+*   访问前端界面的请求（路径 `/`, `/presenter` 等）需要转发到 **前端 Docker 服务**（默认映射到宿主机的 `11451` 端口）。
+*   前端发出的 API 请求（路径 `/api/...`）需要转发到 **后端 Docker 服务**（默认映射到宿主机的 `18080` 端口）。
+
+**重要配置：**
+
+您需要在**外部反向代理**（处理您域名的那个）上配置类似以下的规则（以 Nginx 为例）：
+
+```nginx
+# 外部 Nginx 配置示例 (vueqa.jerryspace.one.conf)
+
+# 优先处理 API 请求，转发到后端服务 (端口 18080)
+location /api/ {
+    proxy_pass http://127.0.0.1:18080; # 指向后端服务端口
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # WebSocket 支持
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+
+# 处理其他所有请求，转发到前端服务 (端口 11451)
+location / {
+    proxy_pass http://127.0.0.1:11451; # 指向前端服务端口
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+**注意：如果您使用网站管理面板（如宝塔面板）：**
+
+*   面板可能不允许在 UI 上同时设置 `/` 和 `/api` 的代理。
+*   **推荐方法**：
+    1.  在面板 UI 中**只设置**根路径 `/` 的反向代理，指向前端端口 `11451`。
+    2.  找到面板中该站点的“配置文件”或“自定义配置”编辑区域。
+    3.  将上面示例中的 `location /api/ { ... }` 块**完整粘贴**到自定义配置区域。
+    4.  保存面板配置。面板会自动处理并重载 Nginx。
+*   **备选方法（不推荐，易被覆盖）**：在面板设置 `/` 代理后，手动编辑面板生成的 Nginx 配置文件，在 `location /` 块**上方**插入 `location /api/` 块。
+
+**请务必根据您实际使用的外部反向代理软件（Nginx, Cloudflare, Apache, Caddy 等）调整具体配置语法。**
+
+---
 祝您配置顺利！
