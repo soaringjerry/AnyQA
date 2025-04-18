@@ -51,5 +51,5 @@ networks: # 定义自定义网络
 #    并将敏感信息（如 DB_PASSWORD, OPENAI_API_KEYs）放入其中，
 #    然后在 .gitignore 中忽略 .env 文件。
 #    docker-compose 会自动加载 .env 文件中的变量。
-# 2. 数据库：此配置假设数据库在 Docker Compose 外部运行（IP: YOUR_SERVER_IP）。
+# 2. 数据库：此配置假设数据库在 Docker Compose 外部运行。
 #    如果想在 Docker 中运行数据库，需要添加一个数据库服务（如 mysql 或 postgres）。

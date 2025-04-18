@@ -205,7 +205,7 @@ jobs:
 
           echo "Created production config.json at /root/anyqa_app/config/frontend/config.json"
           echo "Content:"
-          cat /root/anyqa_app/config/frontend/config.json # 打印文件内容以供调试
+          # cat /root/anyqa_app/config/frontend/config.json # Removed for security - avoid printing config to logs
           # --- END: Create Production config.json ---
 
           # 使用新镜像启动服务 (确保 docker-compose.yml 配置了 volume mount)
