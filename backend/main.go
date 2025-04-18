@@ -44,12 +44,12 @@ func init() {
 func main() {
 	r := gin.Default()
 
-	// CORS
+	/* // CORS - 已移至外部 Nginx 处理
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE") // 注意：这里重复设置了 Allow-Methods
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -58,6 +58,7 @@ func main() {
 
 		c.Next()
 	})
+	*/
 
 	// API routes
 	// 使用 handlers 包中的函数，并传递 db 和 cfg
