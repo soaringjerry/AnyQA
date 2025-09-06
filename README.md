@@ -27,6 +27,28 @@
 
 **强烈推荐使用 Vue 前端 (`frontend-vue`)**
 
+### 一键部署/更新（Docker，本地构建）
+
+提供脚本 `scripts/anyqa.sh` 简化配置、构建与启动：
+
+- 先安装 Docker 与 Docker Compose（v2 推荐）。
+- 运行：
+  ```bash
+  chmod +x scripts/anyqa.sh
+  ./scripts/anyqa.sh init     # 交互式配置并启动（本地构建）
+  # 之后：
+  ./scripts/anyqa.sh up       # 重建并启动
+  ./scripts/anyqa.sh down     # 停止
+  ./scripts/anyqa.sh restart  # 重启
+  ./scripts/anyqa.sh logs     # 查看日志
+  ```
+
+说明：
+- 脚本会生成项目根目录 `.env`（后端环境变量）与 `frontend-vue/public/config.json`（前端运行时配置）。
+- 使用 `docker-compose.local.yml` 从源码本地构建并启动前后端：
+  - 后端映射端口 `18080 -> 8080`，API 形如 `http://127.0.0.1:18080/api`
+  - 前端映射端口 `11451 -> 80`，访问 `http://127.0.0.1:11451`
+
 ### 1. 配置数据库
 
 *   确保你有一个正在运行的 MySQL 服务。
@@ -90,6 +112,37 @@
 本项目配置了 GitHub Actions 以实现自动化构建和部署。当代码推送到 `main` 分支时，会自动构建 Docker 镜像并部署到目标服务器。
 
 **详细的 CI/CD 配置步骤和要求，请参考：[CI/CD 设置指南 (CICD_SETUP.md)](./CICD_SETUP.md)**
+
+### 一键部署（使用 GHCR 镜像）
+
+在服务器上使用脚本 `scripts/deploy_ghcr.sh` 完成登录、配置与拉取镜像并启动：
+
+1) 准备服务器（安装 Docker & Docker Compose v2）
+
+2) 获取脚本并赋权：
+```
+chmod +x scripts/deploy_ghcr.sh
+```
+
+3) 登录 GHCR（需要 GitHub 用户名与具备 read:packages 的 Token）：
+```
+./scripts/deploy_ghcr.sh login
+```
+
+4) 配置（镜像 OWNER/仓库名与 Tag、数据库与 OpenAI、前端 config.json 等）：
+```
+./scripts/deploy_ghcr.sh config
+```
+
+5) 启动 / 更新：
+```
+./scripts/deploy_ghcr.sh up       # 首次启动
+./scripts/deploy_ghcr.sh update   # 之后每次 CI 构建出新 Tag 后执行更新
+```
+
+默认部署目录：`/root/anyqa_app`（可通过环境变量 `DEPLOY_DIR` 覆盖）。脚本会将根目录 `docker-compose.yml` 拷贝到部署目录，并生成 `.env` 与 `config/frontend/config.json`。
+
+补充：如果你使用 CI/CD 产物（远程镜像）在服务器部署，继续使用根目录 `docker-compose.yml`（依赖 GHCR 镜像与服务器 `.env`）。如果是本地自建/测试，推荐上面的 `scripts/anyqa.sh` + `docker-compose.local.yml` 路线。
 
 ##  页面/组件说明 (Vue 前端)
 

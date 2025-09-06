@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: anyqa_backend_local
+    env_file:
+      - .env
+    ports:
+      - "18080:8080"
+    restart: unless-stopped
+    networks:
+      - anyqa_local
+
+  frontend:
+    build:
+      context: ./frontend-vue
+      dockerfile: Dockerfile
+    container_name: anyqa_frontend_local
+    depends_on:
+      - backend
+    ports:
+      - "11451:80"
+    restart: unless-stopped
+    networks:
+      - anyqa_local
+
+networks:
+  anyqa_local:
+    driver: bridge
+
