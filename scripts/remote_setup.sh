@@ -238,6 +238,18 @@ EOF
 pull_images() {
     log_info "拉取 Docker 镜像..."
     local compose_cmd=$(check_compose)
+
+    if [[ ! -f "$DEPLOY_DIR/.env" ]]; then
+        log_error ".env 文件不存在，请先运行 config"
+        exit 1
+    fi
+
+    # 导出环境变量供 docker compose 使用
+    set -a
+    source "$DEPLOY_DIR/.env"
+    set +a
+    export DEPLOY_DIR
+
     (cd "$DEPLOY_DIR" && $compose_cmd pull)
     log_ok "镜像拉取完成"
 }
@@ -246,6 +258,18 @@ pull_images() {
 start_services() {
     log_info "启动服务..."
     local compose_cmd=$(check_compose)
+
+    if [[ ! -f "$DEPLOY_DIR/.env" ]]; then
+        log_error ".env 文件不存在，请先运行 config"
+        exit 1
+    fi
+
+    # 导出环境变量
+    set -a
+    source "$DEPLOY_DIR/.env"
+    set +a
+    export DEPLOY_DIR
+
     (cd "$DEPLOY_DIR" && $compose_cmd up -d --remove-orphans)
     log_ok "服务已启动"
 }
@@ -254,6 +278,14 @@ start_services() {
 stop_services() {
     log_info "停止服务..."
     local compose_cmd=$(check_compose)
+
+    if [[ -f "$DEPLOY_DIR/.env" ]]; then
+        set -a
+        source "$DEPLOY_DIR/.env"
+        set +a
+    fi
+    export DEPLOY_DIR
+
     (cd "$DEPLOY_DIR" && $compose_cmd down)
     log_ok "服务已停止"
 }
@@ -261,6 +293,14 @@ stop_services() {
 # 查看状态
 show_status() {
     local compose_cmd=$(check_compose)
+
+    if [[ -f "$DEPLOY_DIR/.env" ]]; then
+        set -a
+        source "$DEPLOY_DIR/.env"
+        set +a
+    fi
+    export DEPLOY_DIR
+
     echo ""
     echo "=== 容器状态 ==="
     (cd "$DEPLOY_DIR" && $compose_cmd ps)
@@ -272,6 +312,14 @@ show_status() {
 # 查看日志
 show_logs() {
     local compose_cmd=$(check_compose)
+
+    if [[ -f "$DEPLOY_DIR/.env" ]]; then
+        set -a
+        source "$DEPLOY_DIR/.env"
+        set +a
+    fi
+    export DEPLOY_DIR
+
     (cd "$DEPLOY_DIR" && $compose_cmd logs -f --tail=100)
 }
 
