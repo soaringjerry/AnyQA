@@ -18,7 +18,7 @@ import (
 
 // HandleDocumentUpload 处理文档上传请求
 // POST /api/documents
-func HandleDocumentUpload(c *gin.Context, db *sql.DB) {
+func HandleDocumentUpload(c *gin.Context, db *sql.DB, cfg *config.Config) {
 	// 1. 从表单获取会话ID
 	sessionId := c.PostForm("sessionId")
 	if sessionId == "" {
@@ -74,11 +74,7 @@ func HandleDocumentUpload(c *gin.Context, db *sql.DB) {
 	doc.ID = int(docId) // 获取插入的ID
 
 	// 异步触发文档处理
-	// 需要访问全局配置 cfg
-	// 在实际应用中，考虑依赖注入或其他方式传递配置和数据库连接
-	appConfig := config.NewConfig() // 重新加载配置，或者从 main 传递进来
-
-	go func(docID int, filePath string, dbConn *sql.DB, cfgInstance *config.Config) { // 添加 cfgInstance 参数
+	go func(docID int, filePath string, dbConn *sql.DB, cfgInstance *config.Config) {
 		fmt.Printf("开始异步处理文档 ID: %d, Path: %s\n", docID, filePath)
 		// 传递配置给处理函数
 		err := services.ProcessUploadedDocument(dbConn, cfgInstance, docID, filePath)
@@ -88,7 +84,7 @@ func HandleDocumentUpload(c *gin.Context, db *sql.DB) {
 		} else {
 			fmt.Printf("异步处理文档 ID %d 完成\n", docID)
 		}
-	}(doc.ID, doc.FilePath, db, appConfig) // 传递数据库连接和配置实例
+	}(doc.ID, doc.FilePath, db, cfg)
 
 	c.JSON(http.StatusOK, gin.H{"status": "success", "document": doc})
 }

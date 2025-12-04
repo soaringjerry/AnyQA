@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     ports:
-      - "18080:8080"
+      - "18082:8080"
     restart: unless-stopped
     networks:
       - anyqa_local

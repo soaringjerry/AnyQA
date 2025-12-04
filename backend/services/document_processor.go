@@ -135,11 +135,10 @@ func ExtractTextFromFile(filePath string) (string, error) {
 // extractTextFromPDF 从PDF文件中提取文本
 func extractTextFromPDF(filePath string) (string, error) {
 	f, r, err := pdf.Open(filePath)
-	// 记得关闭文件
-	defer f.Close()
 	if err != nil {
 		return "", fmt.Errorf("failed to open pdf file %s: %w", filePath, err)
 	}
+	defer f.Close()
 
 	var buf strings.Builder
 	totalPage := r.NumPage()

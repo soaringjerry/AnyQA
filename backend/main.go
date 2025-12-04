@@ -77,7 +77,7 @@ func main() {
 		c.JSON(200, gin.H{})
 	})
 	// 新增：文档上传路由
-	r.POST("/api/documents", func(c *gin.Context) { handlers.HandleDocumentUpload(c, db) })
+	r.POST("/api/documents", func(c *gin.Context) { handlers.HandleDocumentUpload(c, db, cfg) })
 	// 新增：获取文档列表路由
 	r.GET("/api/documents/:sessionId", func(c *gin.Context) { handlers.GetSessionDocuments(c, db) })
 	// 新增：删除文档路由

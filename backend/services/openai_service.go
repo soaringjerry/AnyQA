@@ -2,14 +2,15 @@ package services
 
 import (
 	"bytes"
-	"database/sql" // 确保导入 database/sql
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings" // 确保导入 strings
+	"strings"
+	"time"
 
-	"github.com/soaringjerry/AnyQA/backend/config" // 确保路径正确
-	"github.com/soaringjerry/AnyQA/backend/models" // 导入 models 包
+	"github.com/soaringjerry/AnyQA/backend/config"
+	"github.com/soaringjerry/AnyQA/backend/models"
 )
 
 // ChatMessage 定义了聊天消息的结构
@@ -109,7 +110,7 @@ func (client *OpenAIClient) GetEmbeddings(texts []string) ([][]float32, error) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+client.apiKey)
 
-	httpClient := &http.Client{}
+	httpClient := &http.Client{Timeout: 60 * time.Second}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send embeddings request to OpenAI API: %w", err)
@@ -190,7 +191,7 @@ func (client *OpenAIClient) GenerateAnswerWithContext(db *sql.DB, cfg *config.Co
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+client.apiKey)
 
-	httpClient := &http.Client{}
+	httpClient := &http.Client{Timeout: 120 * time.Second}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send chat completion request to OpenAI API: %w", err)
@@ -248,7 +249,7 @@ func (client *OpenAIClient) GetGenericAIResponse(db *sql.DB, cfg *config.Config,
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+client.apiKey)
 
-	httpClient := &http.Client{}
+	httpClient := &http.Client{Timeout: 120 * time.Second}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send generic chat completion request to OpenAI API: %w", err)
