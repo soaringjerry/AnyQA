@@ -140,9 +140,9 @@ func DeleteDocument(c *gin.Context, db *sql.DB) {
 	}
 	defer tx.Rollback() // 保证出错时回滚
 
-	// 2. 获取文件路径以便稍后删除文件
-	var filePath string
-	err = tx.QueryRow(`SELECT file_path FROM documents WHERE id = ?`, docId).Scan(&filePath)
+	// 2. 获取文件路径和 sessionId 以便稍后删除文件和使缓存失效
+	var filePath, sessionId string
+	err = tx.QueryRow(`SELECT file_path, session_id FROM documents WHERE id = ?`, docId).Scan(&filePath, &sessionId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
@@ -177,6 +177,9 @@ func DeleteDocument(c *gin.Context, db *sql.DB) {
 	} else {
 		fmt.Printf("警告：文档 %s 的文件路径为空，无法删除物理文件。\n", docId)
 	}
+
+	// 6. 使向量缓存失效
+	services.GetVectorCache().InvalidateSession(sessionId)
 
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "document deleted successfully"})
 }

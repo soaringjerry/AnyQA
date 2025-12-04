@@ -102,6 +102,10 @@ func ProcessUploadedDocument(db *sql.DB, cfg *config.Config, docID int, filePath
 	}
 
 	fmt.Printf("文档 %d 所有块和向量存储完成。\n", docID)
+
+	// 使缓存失效，下次查询时会重新加载
+	GetVectorCache().InvalidateDocument(db, docID)
+
 	return nil
 }
 

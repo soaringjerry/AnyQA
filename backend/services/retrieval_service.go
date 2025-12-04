@@ -2,13 +2,12 @@ package services
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
 
-	"github.com/soaringjerry/AnyQA/backend/config" // 确保路径正确
-	"github.com/soaringjerry/AnyQA/backend/models" // 确保路径正确
+	"github.com/soaringjerry/AnyQA/backend/config"
+	"github.com/soaringjerry/AnyQA/backend/models"
 )
 
 // ChunkWithSimilarity 用于存储文档块及其与问题的相似度
@@ -27,7 +26,7 @@ func RetrieveRelevantChunks(db *sql.DB, cfg *config.Config, question string, ses
 	}
 
 	// 1. 获取问题的嵌入向量
-	openaiClient := NewOpenAIClient(cfg) // 复用 openai_service.go 中的客户端
+	openaiClient := NewOpenAIClient(cfg)
 	questionEmbeddings, err := openaiClient.GetEmbeddings([]string{question})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get embedding for question: %w", err)
@@ -38,63 +37,36 @@ func RetrieveRelevantChunks(db *sql.DB, cfg *config.Config, question string, ses
 	questionEmbedding := questionEmbeddings[0]
 	fmt.Printf("问题向量获取成功 (维度: %d)\n", len(questionEmbedding))
 
-	// 2. 从数据库查询当前会话的所有文档块及其向量
-	// 注意：这里一次性加载了所有块，对于大量文档可能需要优化（如分页、预过滤）
-	query := `
-        SELECT dc.id, dc.document_id, dc.content, dc.chunk_index, dc.embedding
-        FROM document_chunks dc
-        JOIN documents d ON dc.document_id = d.id
-        WHERE d.session_id = ? AND dc.embedding IS NOT NULL AND dc.embedding != ''
-    `
-	rows, err := db.Query(query, sessionId)
+	// 2. 从缓存获取文档块向量（避免每次查询都解析 JSON）
+	cache := GetVectorCache()
+	cachedChunks, err := cache.GetSessionChunks(db, sessionId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query document chunks for session %s: %w", sessionId, err)
+		return nil, fmt.Errorf("failed to get cached chunks for session %s: %w", sessionId, err)
 	}
-	defer rows.Close()
 
 	var chunksWithSimilarity []ChunkWithSimilarity
 
-	// 3. 计算相似度
+	// 3. 计算相似度（直接使用缓存的向量，无需反序列化）
 	fmt.Println("开始计算相似度...")
-	processedChunks := 0
-	for rows.Next() {
-		var chunk models.DocumentChunk
-		var embeddingJSON string // 从数据库读取 JSON 字符串
-
-		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.Content, &chunk.ChunkIndex, &embeddingJSON); err != nil {
-			fmt.Printf("警告：扫描文档块失败: %v\n", err)
-			continue // 跳过这个块
-		}
-
-		// 反序列化嵌入向量
-		var chunkEmbedding []float32
-		if err := json.Unmarshal([]byte(embeddingJSON), &chunkEmbedding); err != nil {
-			fmt.Printf("警告：无法反序列化文档块 %d (ID: %d) 的向量: %v\n", chunk.ChunkIndex, chunk.ID, err)
-			continue // 跳过这个块
-		}
-
-		if len(chunkEmbedding) == 0 {
-			fmt.Printf("警告：文档块 %d (ID: %d) 的向量为空，跳过计算。\n", chunk.ChunkIndex, chunk.ID)
+	for _, cached := range cachedChunks {
+		similarity, err := cosineSimilarity(questionEmbedding, cached.Embedding)
+		if err != nil {
+			fmt.Printf("警告：计算文档块 %d 的相似度失败: %v\n", cached.ID, err)
 			continue
 		}
 
-		// 计算余弦相似度
-		similarity, err := cosineSimilarity(questionEmbedding, chunkEmbedding)
-		if err != nil {
-			fmt.Printf("警告：计算文档块 %d (ID: %d) 的相似度失败: %v\n", chunk.ChunkIndex, chunk.ID, err)
-			continue // 跳过这个块
+		chunk := models.DocumentChunk{
+			ID:         cached.ID,
+			DocumentID: cached.DocumentID,
+			Content:    cached.Content,
+			ChunkIndex: cached.ChunkIndex,
 		}
-
 		chunksWithSimilarity = append(chunksWithSimilarity, ChunkWithSimilarity{
 			Chunk:      chunk,
 			Similarity: similarity,
 		})
-		processedChunks++
 	}
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over chunk rows: %w", err)
-	}
-	fmt.Printf("相似度计算完成，处理了 %d 个有效块。\n", processedChunks)
+	fmt.Printf("相似度计算完成，处理了 %d 个有效块。\n", len(chunksWithSimilarity))
 
 	if len(chunksWithSimilarity) == 0 {
 		fmt.Println("没有找到可比较的文档块。")
