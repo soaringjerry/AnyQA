@@ -450,6 +450,61 @@ uninstall() {
     log_ok "卸载完成"
 }
 
+# 初始化数据库表
+init_db() {
+    log_info "初始化数据库表..."
+
+    if [[ ! -f "$DEPLOY_DIR/.env" ]]; then
+        log_error ".env 文件不存在，请先运行 config"
+        return 1
+    fi
+
+    # 读取数据库配置
+    set -a
+    source "$DEPLOY_DIR/.env"
+    set +a
+
+    # 去掉单引号
+    local db_host="${DB_HOST//\'/}"
+    local db_port="${DB_PORT//\'/}"
+    local db_user="${DB_USER//\'/}"
+    local db_pass="${DB_PASSWORD//\'/}"
+    local db_name="${DB_NAME//\'/}"
+
+    # 检查 mysql 客户端
+    if ! command -v mysql &>/dev/null; then
+        log_info "安装 MySQL 客户端..."
+        local pkg_mgr=$(detect_pkg_manager)
+        case "$pkg_mgr" in
+            apt)
+                apt-get update -qq && apt-get install -y -qq mysql-client || apt-get install -y -qq default-mysql-client
+                ;;
+            yum|dnf)
+                $pkg_mgr install -y mysql
+                ;;
+            *)
+                log_warn "无法自动安装 mysql 客户端，请手动执行: mysql -h $db_host -P $db_port -u $db_user -p $db_name < $DEPLOY_DIR/schema.sql"
+                return 1
+                ;;
+        esac
+    fi
+
+    # 检查 schema.sql 是否存在
+    if [[ ! -f "$DEPLOY_DIR/schema.sql" ]]; then
+        log_info "下载 schema.sql..."
+        curl -fsSL "$REPO_RAW/schema.sql" -o "$DEPLOY_DIR/schema.sql"
+    fi
+
+    # 执行建表
+    log_info "连接数据库 $db_host:$db_port/$db_name ..."
+    if mysql -h "$db_host" -P "$db_port" -u "$db_user" -p"$db_pass" "$db_name" < "$DEPLOY_DIR/schema.sql" 2>/dev/null; then
+        log_ok "数据库表初始化完成"
+    else
+        log_warn "数据库初始化失败，可能表已存在或连接失败"
+        log_info "如需手动执行: mysql -h $db_host -P $db_port -u $db_user -p $db_name < $DEPLOY_DIR/schema.sql"
+    fi
+}
+
 # 显示数据库初始化命令
 show_db_init() {
     echo ""
@@ -475,6 +530,7 @@ AnyQA 一键部署脚本
 命令:
   install     完整安装（默认）
   config      仅配置环境变量
+  initdb      初始化数据库表
   upgrade     升级到最新版本
   repair      诊断并修复问题
   start       启动服务
@@ -515,6 +571,7 @@ full_install() {
     ghcr_login
     configure_env
     pull_images
+    init_db
     start_services
 
     echo ""
@@ -527,7 +584,6 @@ full_install() {
     echo ""
     echo "配置目录: $DEPLOY_DIR"
     echo ""
-    show_db_init
     echo "常用命令:"
     echo "  查看状态: curl -fsSL $REPO_RAW/scripts/remote_setup.sh | bash -s -- status"
     echo "  查看日志: curl -fsSL $REPO_RAW/scripts/remote_setup.sh | bash -s -- logs"
@@ -542,6 +598,7 @@ main() {
     case "$cmd" in
         install)    full_install ;;
         config)     configure_env ;;
+        initdb)     init_db ;;
         upgrade)    upgrade ;;
         repair)     repair ;;
         start)      start_services ;;
