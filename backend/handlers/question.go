@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
-	"github.com/soaringjerry/AnyQA/backend/config"   // 确保路径正确
-	"github.com/soaringjerry/AnyQA/backend/services" // 确保路径正确
+	"github.com/soaringjerry/AnyQA/backend/config"
+	"github.com/soaringjerry/AnyQA/backend/models"
+	"github.com/soaringjerry/AnyQA/backend/services"
 )
 
 // HandleQuestion 处理新问题的提交
@@ -38,50 +40,63 @@ func HandleQuestion(c *gin.Context, db *sql.DB, cfg *config.Config) { // 添加 
 	// 立即返回给用户成功响应，不阻塞用户请求
 	c.JSON(http.StatusOK, gin.H{"status": "success", "questionId": id})
 
-	// 异步处理AI回复和知识库检索逻辑
+	// 异步处理AI回复和知识库检索逻辑（并行执行）
 	go func(questionID int64, qSessionID string, qContent string) {
-		// 1. 获取通用 AI 建议
-		openaiClient := services.NewOpenAIClient(cfg) // 创建 OpenAI 客户端
-		// 传递 db 和 qSessionID 以获取自定义或默认提示词
-		aiResponse, err := openaiClient.GetGenericAIResponse(db, cfg, qSessionID, qContent)
-		if err != nil {
-			fmt.Printf("获取通用 AI 建议错误 (问题ID %d): %v\n", questionID, err)
-			aiResponse = "" // 出错则为空
-		} else {
-			fmt.Printf("问题ID %d 的通用 AI 建议获取成功。\n", questionID)
-		}
+		openaiClient := services.NewOpenAIClient(cfg)
+		var wg sync.WaitGroup
+		var aiResponse string
+		var kbSuggestion string
+		var relevantChunks []models.DocumentChunk
 
-		// 2. 从知识库检索相关文档块
-		var kbSuggestion string = "" // 初始化知识库建议为空
-		topK := 3                    // 检索最相关的3个块
-		relevantChunks, err := services.RetrieveRelevantChunks(db, cfg, qContent, qSessionID, topK)
-		if err != nil {
-			fmt.Printf("知识库检索错误 (问题ID %d): %v\n", questionID, err)
-			// 检索失败，kbSuggestion 保持为空
-		} else if len(relevantChunks) > 0 {
-			fmt.Printf("问题ID %d 检索到 %d 个相关文档块。\n", questionID, len(relevantChunks))
-			// 使用检索到的块生成知识库回答
-			// 注意：openaiClient 已经在上面创建过了，可以直接复用
-			// 传递 db 和 qSessionID 以获取自定义或默认提示词
+		// 并行任务1: 获取通用 AI 建议
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var err error
+			aiResponse, err = openaiClient.GetGenericAIResponse(db, cfg, qSessionID, qContent)
+			if err != nil {
+				fmt.Printf("获取通用 AI 建议错误 (问题ID %d): %v\n", questionID, err)
+				aiResponse = ""
+			} else {
+				fmt.Printf("问题ID %d 的通用 AI 建议获取成功。\n", questionID)
+			}
+		}()
+
+		// 并行任务2: 从知识库检索相关文档块
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			topK := 3
+			var err error
+			relevantChunks, err = services.RetrieveRelevantChunks(db, cfg, qContent, qSessionID, topK)
+			if err != nil {
+				fmt.Printf("知识库检索错误 (问题ID %d): %v\n", questionID, err)
+			} else if len(relevantChunks) > 0 {
+				fmt.Printf("问题ID %d 检索到 %d 个相关文档块。\n", questionID, len(relevantChunks))
+			} else {
+				fmt.Printf("问题ID %d 未在知识库中检索到相关内容。\n", questionID)
+			}
+		}()
+
+		// 等待两个并行任务完成
+		wg.Wait()
+
+		// 如果有检索结果，生成知识库回答（需要等检索完成后才能执行）
+		if len(relevantChunks) > 0 {
 			generatedKbAnswer, genErr := openaiClient.GenerateAnswerWithContext(db, cfg, qSessionID, qContent, relevantChunks)
 			if genErr != nil {
 				fmt.Printf("生成知识库回答错误 (问题ID %d): %v\n", questionID, genErr)
-				// 生成失败，可以提供一个默认提示或之前的简单拼接
 				kbSuggestion = "【知识库参考】:\n（生成回答时出错，仅列出部分参考）\n"
 				for _, chunk := range relevantChunks {
-					// 需要一个 min 函数
 					kbSuggestion += fmt.Sprintf("- %s...\n", chunk.Content[:minLocal(100, len(chunk.Content))])
 				}
 			} else {
-				kbSuggestion = generatedKbAnswer // 使用 AI 生成的回答
+				kbSuggestion = generatedKbAnswer
 				fmt.Printf("问题ID %d 的知识库回答生成成功。\n", questionID)
 			}
-		} else {
-			fmt.Printf("问题ID %d 未在知识库中检索到相关内容。\n", questionID)
-			kbSuggestion = "" // 如果未检索到内容，则知识库建议为空
 		}
 
-		// 3. 更新数据库记录，同时写入 AI 建议和知识库建议
+		// 更新数据库记录
 		_, updateErr := db.Exec(`UPDATE questions SET ai_suggestion = ?, kb_suggestion = ? WHERE id = ?`,
 			aiResponse, kbSuggestion, questionID)
 		if updateErr != nil {
@@ -90,7 +105,7 @@ func HandleQuestion(c *gin.Context, db *sql.DB, cfg *config.Config) { // 添加 
 			fmt.Printf("问题 %d 的 AI 和知识库建议已更新。\n", questionID)
 		}
 
-	}(id, question.SessionID, question.Content) // 传递 SessionID 和 Content
+	}(id, question.SessionID, question.Content)
 }
 
 // GetQuestions 获取指定会话的所有问题
