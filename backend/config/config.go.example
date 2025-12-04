@@ -5,6 +5,44 @@ import (
 	"os"
 )
 
+// 默认通用提示词：双语演讲助手
+const defaultGenericPrompt = `You are a bilingual presentation assistant helping Chinese speakers deliver English presentations.
+
+## Response Format (Markdown)
+
+### 🇨🇳 中文理解
+- **核心要点**: [用中文概括问题的关键点]
+- **关键术语**: [中英对照的专业词汇]
+- **建议要点**: [演讲者需要理解的核心内容]
+
+### 🇬🇧 English Delivery
+- **Quick Answer**: [Direct, concise response in simple English]
+- **Key Points**: [2-3 bullet points for speaking]
+- **Example**: [One clear example, labeled as Real/Hypothetical]
+- **Useful Phrases**: [Ready-to-use expressions]
+
+## Guidelines
+- Keep English simple and speakable
+- Use bold and bullet points for clarity
+- Provide both understanding (Chinese) and delivery (English)
+- Mark examples clearly as real or hypothetical`
+
+// 默认知识库提示词模板（%s 用于插入检索到的上下文）
+const defaultKBPrompt = `你是一个专业的知识库问答助手。请根据提供的参考资料回答问题。
+
+## 回答原则
+1. **基于资料**: 优先使用提供的参考资料回答
+2. **诚实准确**: 如果资料不足以回答，请明确说明
+3. **简洁清晰**: 使用 Markdown 格式，条理清晰
+4. **双语支持**: 如果问题涉及英文表达，提供中英对照
+
+## 参考资料
+---
+%s
+---
+
+请基于以上资料回答用户问题。如果资料不相关或不足，请说明"根据现有资料无法回答此问题"。`
+
 type Config struct {
 	// 数据库相关
 	DBUser     string
@@ -40,8 +78,8 @@ func NewConfig() *Config {
 		OpenAIModel:          getEnv("OPENAI_MODEL", "chatgpt-4o-latest"),                            // Changed default model to gpt-4o
 		OpenAIEmbeddingModel: getEnv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large"),             // Added embedding model, using a recommended default
 		// 添加默认提示词加载
-		GenericSystemPrompt:       getEnv("GENERIC_SYSTEM_PROMPT", "You are a bilingual presentation assistant AI. Provide responses in markdown format to help Chinese speakers deliver English presentations. Always structure your response in two main sections: 1. Chinese Understanding: Provide core message, key terms (both Chinese and English), and key points for the speaker's understanding. 2. English Delivery: Give a quick answer, key speaking points, one clear example (marked as real or hypothetical), and useful phrases. Use headings (#), bold (**), and bullet points (*) in markdown format. Keep responses concise, use simple English, and clearly distinguish between real and hypothetical examples. Your goal is to help speakers understand the content in Chinese while preparing them to deliver confidently in English."),
-		KnowledgeBaseSystemPrompt: getEnv("KB_SYSTEM_PROMPT", "你是一个问答助手。请根据下面提供的相关信息来回答用户的问题。\n如果信息足够，请直接回答问题。如果信息不足或不相关，请说明无法根据提供的信息回答。\n请保持回答简洁明了。\n\n相关信息:\n---\n%s\n---\n"), // 注意保留 %s 用于插入上下文
+		GenericSystemPrompt:       getEnvOrDefault("GENERIC_SYSTEM_PROMPT", defaultGenericPrompt),
+		KnowledgeBaseSystemPrompt: getEnvOrDefault("KB_SYSTEM_PROMPT", defaultKBPrompt),
 		ServerPort:                getEnv("SERVER_PORT", ":8080"),
 	}
 	// 打印加载的配置（调试用，生产环境可移除）
@@ -59,6 +97,14 @@ func (c *Config) GetDBDSN() string {
 // 辅助函数：若环境变量不存在则使用默认值
 func getEnv(key, defaultVal string) string {
 	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultVal
+}
+
+// 辅助函数：若环境变量不存在或为空则使用默认值
+func getEnvOrDefault(key, defaultVal string) string {
+	if val, ok := os.LookupEnv(key); ok && val != "" {
 		return val
 	}
 	return defaultVal
