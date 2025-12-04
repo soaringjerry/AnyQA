@@ -196,6 +196,22 @@ action_logs() {
   (cd "${DEPLOY_DIR}" && ${DCMD} logs -f --tail=200)
 }
 
+action_status() {
+  require_tools
+  local DCMD; DCMD=$(detect_compose)
+  echo "=== Container Status ==="
+  (cd "${DEPLOY_DIR}" && ${DCMD} ps)
+  echo ""
+  echo "=== Recent Logs (last 20 lines) ==="
+  (cd "${DEPLOY_DIR}" && ${DCMD} logs --tail=20)
+}
+
+action_restart() {
+  require_tools
+  local DCMD; DCMD=$(detect_compose)
+  (cd "${DEPLOY_DIR}" && ${DCMD} restart)
+}
+
 usage() {
   cat <<USAGE
 AnyQA GHCR deploy helper (server-side)
@@ -209,7 +225,9 @@ Commands:
   down      Stop services
   pull      Pull latest images (from GHCR)
   update    Pull and restart with new images
+  restart   Restart services (no pull)
   logs      Tail logs
+  status    Show container status and recent logs
 
 Typical flow (on server):
   chmod +x scripts/deploy_ghcr.sh
@@ -230,7 +248,9 @@ main() {
     down) action_down ;;
     pull) action_pull ;;
     update) action_update ;;
+    restart) action_restart ;;
     logs) action_logs ;;
+    status) action_status ;;
     *) usage; exit 1 ;;
   esac
 }
