@@ -173,7 +173,8 @@ configure_env() {
     local image_tag=$(prompt "镜像 Tag (latest 或 sha-xxx)" "latest")
 
     echo ""
-    echo "=== 数据库配置 ==="
+    echo "=== 数据库配置 (需要外部 MySQL) ==="
+    echo "提示: 如果 MySQL 在本机，用 host.docker.internal 或本机公网IP"
     local db_host=$(prompt "数据库地址" "host.docker.internal")
     local db_port=$(prompt "数据库端口" "3306")
     local db_user=$(prompt "数据库用户" "root")
@@ -189,10 +190,12 @@ configure_env() {
 
     echo ""
     echo "=== 前端配置 ==="
-    local public_host=$(prompt "公网访问地址 (域名或IP)" "localhost")
+    echo "注意: 域名/IP 不要带 http:// 或端口号"
+    echo "示例: example.com 或 192.168.1.100"
+    local public_host=$(prompt "公网访问地址" "localhost")
     local api_port=$(prompt "后端 API 端口" "18082")
     local fe_port=$(prompt "前端端口" "11451")
-    local protocol=$(prompt "协议 (http/https)" "http")
+    local protocol=$(prompt "协议 http 或 https" "http")
 
     # 写入 .env（用单引号防止特殊字符问题）
     cat > "$env_file" <<EOF
