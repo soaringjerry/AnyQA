@@ -194,29 +194,29 @@ configure_env() {
     local fe_port=$(prompt "前端端口" "11451")
     local protocol=$(prompt "协议 (http/https)" "http")
 
-    # 写入 .env
+    # 写入 .env（用单引号防止特殊字符问题）
     cat > "$env_file" <<EOF
 # AnyQA 配置文件 - 自动生成于 $(date)
 
 # 镜像
-BACKEND_IMAGE=ghcr.io/${GHCR_OWNER}/anyqa_backend:${image_tag}
-FRONTEND_IMAGE=ghcr.io/${GHCR_OWNER}/anyqa_frontend:${image_tag}
+BACKEND_IMAGE='ghcr.io/${GHCR_OWNER}/anyqa_backend:${image_tag}'
+FRONTEND_IMAGE='ghcr.io/${GHCR_OWNER}/anyqa_frontend:${image_tag}'
 
 # 数据库
-DB_HOST=${db_host}
-DB_PORT=${db_port}
-DB_USER=${db_user}
-DB_PASSWORD=${db_pass}
-DB_NAME=${db_name}
+DB_HOST='${db_host}'
+DB_PORT='${db_port}'
+DB_USER='${db_user}'
+DB_PASSWORD='${db_pass}'
+DB_NAME='${db_name}'
 
 # OpenAI
-OPENAI_API_KEYs=${openai_key}
-OPENAI_API_URL=${openai_url}
-OPENAI_MODEL=${openai_model}
-OPENAI_EMBEDDING_MODEL=${openai_embed}
+OPENAI_API_KEYs='${openai_key}'
+OPENAI_API_URL='${openai_url}'
+OPENAI_MODEL='${openai_model}'
+OPENAI_EMBEDDING_MODEL='${openai_embed}'
 
 # 服务端口
-SERVER_PORT=:8080
+SERVER_PORT=':8080'
 EOF
 
     # 前端配置
