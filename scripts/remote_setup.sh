@@ -190,12 +190,7 @@ configure_env() {
 
     echo ""
     echo "=== 前端配置 ==="
-    echo "注意: 域名/IP 不要带 http:// 或端口号"
-    echo "示例: example.com 或 192.168.1.100"
-    local public_host=$(prompt "公网访问地址" "localhost")
-    local api_port=$(prompt "后端 API 端口" "18082")
-    local fe_port=$(prompt "前端端口" "11451")
-    local protocol=$(prompt "协议 http 或 https" "http")
+    local session_id=$(prompt "默认 Session ID" "default")
 
     # 写入 .env（用单引号防止特殊字符问题）
     cat > "$env_file" <<EOF
@@ -222,15 +217,12 @@ OPENAI_EMBEDDING_MODEL='${openai_embed}'
 SERVER_PORT=':8080'
 EOF
 
-    # 前端配置
-    local ws_protocol="ws"
-    [[ "$protocol" == "https" ]] && ws_protocol="wss"
-
+    # 前端配置（反代模式，用相对路径）
     cat > "$DEPLOY_DIR/config/frontend/config.json" <<EOF
 {
-  "api": { "endpoint": "${protocol}://${public_host}:${api_port}/api" },
-  "session": { "id": "default" },
-  "ws": { "endpoint": "${ws_protocol}://${public_host}:${api_port}/api/ws" }
+  "api": { "endpoint": "/api" },
+  "session": { "id": "${session_id}" },
+  "ws": { "endpoint": "/api/ws" }
 }
 EOF
 
