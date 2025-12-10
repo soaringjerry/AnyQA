@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/soaringjerry/AnyQA/backend/config"
-	"github.com/soaringjerry/AnyQA/backend/models"
 	"github.com/soaringjerry/AnyQA/backend/services"
 )
 
@@ -40,13 +39,12 @@ func HandleQuestion(c *gin.Context, db *sql.DB, cfg *config.Config) { // 添加 
 	// 立即返回给用户成功响应，不阻塞用户请求
 	c.JSON(http.StatusOK, gin.H{"status": "success", "questionId": id})
 
-	// 异步处理AI回复和知识库检索逻辑（并行执行）
+	// 异步处理AI回复和知识库检索逻辑（完全并行执行）
 	go func(questionID int64, qSessionID string, qContent string) {
 		openaiClient := services.NewOpenAIClient(cfg)
 		var wg sync.WaitGroup
 		var aiResponse string
 		var kbSuggestion string
-		var relevantChunks []models.DocumentChunk
 
 		// 并行任务1: 获取通用 AI 建议
 		wg.Add(1)
@@ -62,27 +60,23 @@ func HandleQuestion(c *gin.Context, db *sql.DB, cfg *config.Config) { // 添加 
 			}
 		}()
 
-		// 并行任务2: 从知识库检索相关文档块
+		// 并行任务2: 知识库检索 + 生成回答（串联但与通用AI并行）
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			topK := 3
-			var err error
-			relevantChunks, err = services.RetrieveRelevantChunks(db, cfg, qContent, qSessionID, topK)
+			relevantChunks, err := services.RetrieveRelevantChunks(db, cfg, qContent, qSessionID, topK)
 			if err != nil {
 				fmt.Printf("知识库检索错误 (问题ID %d): %v\n", questionID, err)
-			} else if len(relevantChunks) > 0 {
-				fmt.Printf("问题ID %d 检索到 %d 个相关文档块。\n", questionID, len(relevantChunks))
-			} else {
-				fmt.Printf("问题ID %d 未在知识库中检索到相关内容。\n", questionID)
+				return
 			}
-		}()
+			if len(relevantChunks) == 0 {
+				fmt.Printf("问题ID %d 未在知识库中检索到相关内容。\n", questionID)
+				return
+			}
+			fmt.Printf("问题ID %d 检索到 %d 个相关文档块。\n", questionID, len(relevantChunks))
 
-		// 等待两个并行任务完成
-		wg.Wait()
-
-		// 如果有检索结果，生成知识库回答（需要等检索完成后才能执行）
-		if len(relevantChunks) > 0 {
+			// 检索完成后立即生成知识库回答（与通用AI并行）
 			generatedKbAnswer, genErr := openaiClient.GenerateAnswerWithContext(db, cfg, qSessionID, qContent, relevantChunks)
 			if genErr != nil {
 				fmt.Printf("生成知识库回答错误 (问题ID %d): %v\n", questionID, genErr)
@@ -94,7 +88,10 @@ func HandleQuestion(c *gin.Context, db *sql.DB, cfg *config.Config) { // 添加 
 				kbSuggestion = generatedKbAnswer
 				fmt.Printf("问题ID %d 的知识库回答生成成功。\n", questionID)
 			}
-		}
+		}()
+
+		// 等待两个并行任务都完成
+		wg.Wait()
 
 		// 更新数据库记录
 		_, updateErr := db.Exec(`UPDATE questions SET ai_suggestion = ?, kb_suggestion = ? WHERE id = ?`,
